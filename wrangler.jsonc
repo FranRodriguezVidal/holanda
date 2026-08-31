@@ -2,9 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "holanda",
   "compatibility_date": "2026-08-31",
-  "assets": {
-    "directory": "./dist"
-  },
+  "pages_build_output_dir": "./dist",
   "observability": {
     "enabled": true
   }

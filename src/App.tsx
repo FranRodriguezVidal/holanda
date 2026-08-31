@@ -112,7 +112,8 @@ function ModeSelectScreen({
           {text.betaNotice}
         </p>
         <div className="mode-actions">
-          <button className="mode-button" type="button" onClick={onOffline}>
+          <button className="mode-button" type="button" disabled aria-describedby="online-mode-notice">
+          {/*<button className="mode-button" type="button" onClick={onOffline}> */}
             <strong>{text.offlineBot}</strong>
             <span>{text.offlineBotDescription}</span>
           </button>
