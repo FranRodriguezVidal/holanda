@@ -103,7 +103,9 @@ function HomeScreen({
   );
 }
 
-type MenuScreen = 'home' | 'mode-select' | 'offline-soon' | 'game';
+type MenuScreen = 'home' | 'mode-select' | 'offline-difficulty' | 'offline-soon' | 'game';
+
+type BotDifficulty = 'beginner' | 'amateur' | 'professional' | 'legend';
 
 function ModeSelectScreen({
   locale,
@@ -138,6 +140,52 @@ function ModeSelectScreen({
           <button className="mode-button" type="button" disabled aria-describedby="online-mode-notice">
             <strong>{text.joinMatch}</strong>
             <span>{text.joinMatchDescription}</span>
+          </button>
+        </div>
+        <div className="hero-panel__actions">
+          <Button variant="secondary" onClick={onBack}>
+            {text.back}
+          </Button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function OfflineDifficultyScreen({
+  locale,
+  onBack,
+  onSelectDifficulty,
+  isMobileBrowser,
+}: {
+  locale: Locale;
+  onBack: () => void;
+  onSelectDifficulty: (difficulty: BotDifficulty) => void;
+  isMobileBrowser: boolean;
+}) {
+  const text = translations[locale];
+
+  return (
+    <main className="screen screen--home" aria-label="HOLANDA bot difficulty">
+      <section className={isMobileBrowser ? 'hero-panel hero-panel--compact' : 'hero-panel'}>
+        <h1>H♦L♥ND♠</h1>
+        <p>{text.chooseDifficulty}</p>
+        <div className="mode-actions">
+          <button className="mode-button" type="button" onClick={() => onSelectDifficulty('beginner')}>
+            <strong>{text.difficultyBeginner}</strong>
+            <span>{text.difficultyBeginnerDescription}</span>
+          </button>
+          <button className="mode-button" type="button" onClick={() => onSelectDifficulty('amateur')}>
+            <strong>{text.difficultyAmateur}</strong>
+            <span>{text.difficultyAmateurDescription}</span>
+          </button>
+          <button className="mode-button" type="button" onClick={() => onSelectDifficulty('professional')}>
+            <strong>{text.difficultyProfessional}</strong>
+            <span>{text.difficultyProfessionalDescription}</span>
+          </button>
+          <button className="mode-button" type="button" onClick={() => onSelectDifficulty('legend')}>
+            <strong>{text.difficultyLegend}</strong>
+            <span>{text.difficultyLegendDescription}</span>
           </button>
         </div>
         <div className="hero-panel__actions">
@@ -211,6 +259,10 @@ export default function App() {
   }, [locale]);
 
   const handleOffline = () => {
+    setScreen('offline-difficulty');
+  };
+
+  const handleSelectDifficulty = () => {
     setScreen('offline-soon');
   };
 
@@ -259,8 +311,15 @@ export default function App() {
           onOffline={handleOffline}
           isMobileBrowser={isMobileBrowser}
         />
+      ) : screen === 'offline-difficulty' ? (
+        <OfflineDifficultyScreen
+          locale={locale}
+          onBack={() => setScreen('mode-select')}
+          onSelectDifficulty={handleSelectDifficulty}
+          isMobileBrowser={isMobileBrowser}
+        />
       ) : screen === 'offline-soon' ? (
-        <OfflineSoonScreen locale={locale} onBack={() => setScreen('mode-select')} />
+        <OfflineSoonScreen locale={locale} onBack={() => setScreen('offline-difficulty')} />
       ) : (
         <GameScreen locale={locale} onBack={() => setScreen('mode-select')} />
       )}
