@@ -112,6 +112,24 @@ textarea:focus-visible {
   text-align: center;
 }
 
+.hero-panel--compact {
+  width: min(100%, 460px);
+  padding: clamp(1.1rem, 2.4vw, 2rem);
+  border-radius: 22px;
+}
+
+.hero-panel--compact h1 {
+  font-size: clamp(2.1rem, 6.4vw, 3.6rem);
+}
+
+.hero-panel--compact p {
+  font-size: 0.94rem;
+}
+
+.hero-panel--compact .hero-panel__actions .button {
+  padding-block: 0.65rem;
+}
+
 .eyebrow {
   margin: 0 0 0.75rem;
   text-transform: uppercase;
@@ -575,4 +593,118 @@ textarea:focus-visible {
   .hero-panel {
     padding: 1.25rem;
   }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 8, 23, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.modal-panel {
+  width: min(100%, 440px);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  color: var(--text);
+}
+
+.modal-panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.3rem;
+}
+
+.modal-panel > p {
+  margin: 0 0 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.modal-instructions {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.modal-instructions__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 0.9rem;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+}
+
+.modal-instructions__item strong {
+  font-size: 0.92rem;
+}
+
+.modal-instructions__item span {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.modal-actions .button {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.install-instructions {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+
+.install-instructions__group {
+  padding: 0.85rem 1rem;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+}
+
+.install-instructions__group h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.98rem;
+  color: var(--accent);
+}
+
+.install-instructions__icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.install-instructions__group ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.5;
 }

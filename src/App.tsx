@@ -1,8 +1,11 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { GameTable } from './components/game/GameTable';
 import { Button } from './components/ui/Button';
+import { InstallInstructions } from './components/ui/InstallInstructions';
+import { InstallPromptModal } from './components/ui/InstallPromptModal';
 import { getDefaultLocale, translations, type Locale } from './i18n/translations';
 import { useGameStore } from './store/useGameStore';
+import { isMobileDevice, isStandaloneDisplayMode } from './utils/device';
 
 const players = ['Ana', 'Bruno', 'Carmen', 'Diego'];
 const fallingCardImages = [
@@ -66,7 +69,17 @@ function LanguageSelector({
   );
 }
 
-function HomeScreen({ locale, onStart, onLanguageChange }: { locale: Locale; onStart: () => void; onLanguageChange: (nextLocale: Locale) => void }) {
+function HomeScreen({
+  locale,
+  onStart,
+  onLanguageChange,
+  isMobileBrowser,
+}: {
+  locale: Locale;
+  onStart: () => void;
+  onLanguageChange: (nextLocale: Locale) => void;
+  isMobileBrowser: boolean;
+}) {
   const text = translations[locale];
 
   return (
@@ -76,7 +89,7 @@ function HomeScreen({ locale, onStart, onLanguageChange }: { locale: Locale; onS
           <img key={id} className="falling-card" src={image} alt="" style={style} />
         ))}
       </div>
-      <section className="hero-panel">
+      <section className={isMobileBrowser ? 'hero-panel hero-panel--compact' : 'hero-panel'}>
         <LanguageSelector locale={locale} onLanguageChange={onLanguageChange} />
 
         <h1>H♦L♥ND♠</h1>
@@ -179,9 +192,17 @@ function GameScreen({ locale, onBack }: { locale: Locale; onBack: () => void }) 
   );
 }
 
+const INSTALL_PROMPT_DISMISSED_KEY = 'holanda.installPromptDismissed';
+
 export default function App() {
   const [screen, setScreen] = useState<MenuScreen>('home');
   const [locale, setLocale] = useState<Locale>(getInitialLocale);
+  const [isMobileBrowser] = useState<boolean>(() => isMobileDevice() && !isStandaloneDisplayMode());
+  const [showInstallPrompt, setShowInstallPrompt] = useState<boolean>(() => {
+    const alreadyDismissed = localStorage.getItem(INSTALL_PROMPT_DISMISSED_KEY) === 'true';
+    return isMobileDevice() && !isStandaloneDisplayMode() && !alreadyDismissed;
+  });
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('holanda.locale', locale);
@@ -191,10 +212,25 @@ export default function App() {
     setScreen('offline-soon');
   };
 
+  const dismissInstallPrompt = () => {
+    setShowInstallPrompt(false);
+  };
+
+  const dismissInstallPromptForever = () => {
+    localStorage.setItem(INSTALL_PROMPT_DISMISSED_KEY, 'true');
+    setShowInstallPrompt(false);
+  };
+
   return (
     <>
       <nav className="app-utilities" aria-label="Application utilities">
-        <button type="button" className="utility-button" aria-label="Information" title="Information">
+        <button
+          type="button"
+          className="utility-button"
+          aria-label="Information"
+          title="Information"
+          onClick={() => setShowInfo(true)}
+        >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="8" cy="8" r="6.5" />
             <path d="M8 7v4M8 4.5v.1" />
@@ -208,13 +244,43 @@ export default function App() {
         </button>
       </nav>
       {screen === 'home' ? (
-        <HomeScreen locale={locale} onStart={() => setScreen('mode-select')} onLanguageChange={setLocale} />
+        <HomeScreen
+          locale={locale}
+          onStart={() => setScreen('mode-select')}
+          onLanguageChange={setLocale}
+          isMobileBrowser={isMobileBrowser}
+        />
       ) : screen === 'mode-select' ? (
         <ModeSelectScreen locale={locale} onBack={() => setScreen('home')} onOffline={handleOffline} />
       ) : screen === 'offline-soon' ? (
         <OfflineSoonScreen locale={locale} onBack={() => setScreen('mode-select')} />
       ) : (
         <GameScreen locale={locale} onBack={() => setScreen('mode-select')} />
+      )}
+      {showInstallPrompt && (
+        <InstallPromptModal
+          locale={locale}
+          onDismiss={dismissInstallPrompt}
+          onDontShowAgain={dismissInstallPromptForever}
+        />
+      )}
+      {showInfo && (
+        <div className="modal-overlay" role="presentation" onClick={() => setShowInfo(false)}>
+          <div
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="info-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="info-modal-title">{translations[locale].infoTitle}</h2>
+            <p>{translations[locale].infoInstallSectionTitle}</p>
+            <InstallInstructions locale={locale} />
+            <div className="modal-actions">
+              <Button onClick={() => setShowInfo(false)}>{translations[locale].installDismiss}</Button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
