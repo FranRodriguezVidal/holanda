@@ -130,6 +130,32 @@ textarea:focus-visible {
   padding-block: 0.65rem;
 }
 
+.hero-panel--compact .mode-actions {
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.hero-panel--compact .mode-button {
+  min-height: 60px;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+}
+
+.hero-panel--compact .mode-button strong {
+  font-size: 0.9rem;
+}
+
+.hero-panel--compact .mode-button span {
+  margin-top: 0.15rem;
+  font-size: 0.76rem;
+}
+
+.hero-panel--compact .beta-notice {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.78rem;
+}
+
 .eyebrow {
   margin: 0 0 0.75rem;
   text-transform: uppercase;

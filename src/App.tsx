@@ -109,16 +109,18 @@ function ModeSelectScreen({
   locale,
   onBack,
   onOffline,
+  isMobileBrowser,
 }: {
   locale: Locale;
   onBack: () => void;
   onOffline: () => void;
+  isMobileBrowser: boolean;
 }) {
   const text = translations[locale];
 
   return (
     <main className="screen screen--home" aria-label="HOLANDA game modes">
-      <section className="hero-panel">
+      <section className={isMobileBrowser ? 'hero-panel hero-panel--compact' : 'hero-panel'}>
         <h1>H♦L♥ND♠</h1>
         <p>{text.chooseMode}</p>
         <p id="online-mode-notice" className="beta-notice" role="status">
@@ -251,7 +253,12 @@ export default function App() {
           isMobileBrowser={isMobileBrowser}
         />
       ) : screen === 'mode-select' ? (
-        <ModeSelectScreen locale={locale} onBack={() => setScreen('home')} onOffline={handleOffline} />
+        <ModeSelectScreen
+          locale={locale}
+          onBack={() => setScreen('home')}
+          onOffline={handleOffline}
+          isMobileBrowser={isMobileBrowser}
+        />
       ) : screen === 'offline-soon' ? (
         <OfflineSoonScreen locale={locale} onBack={() => setScreen('mode-select')} />
       ) : (
