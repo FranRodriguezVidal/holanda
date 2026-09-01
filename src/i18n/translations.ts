@@ -34,6 +34,9 @@ export const translations = {
     installDontShowAgain: "Don't show this again",
     infoTitle: 'Information',
     infoInstallSectionTitle: 'Install HOLANDA as an app',
+    licenseTitle: 'License & attribution',
+    licenseBody:
+      'This icon was generated using OpenAI (ChatGPT) artificial intelligence tools at the request of the author of the Holanda / Dutch project.\n\nThe design is used as part of the visual identity of the project. AI-assisted generation does not imply that OpenAI owns, sponsors, or develops this project.\n\n© 2026 Holanda / Dutch. All rights reserved over the project and its original elements.',
     betaNotice: 'HOLANDA is in beta. Online mode is still in development; currently, only matches against bots are available.',
     back: 'Back',
     joinCode: 'Join with code',
@@ -83,6 +86,9 @@ export const translations = {
     installDontShowAgain: 'No volver a mostrar',
     infoTitle: 'Información',
     infoInstallSectionTitle: 'Instalar HOLANDA como aplicación',
+    licenseTitle: 'Licencia y atribución',
+    licenseBody:
+      'Este icono ha sido generado mediante herramientas de inteligencia artificial de OpenAI (ChatGPT) a petición del autor del proyecto Holanda / Dutch.\n\nEl diseño se utiliza como parte de la identidad visual del proyecto. La generación mediante IA no implica que OpenAI sea propietario, patrocinador o desarrollador de este proyecto.\n\n© 2026 Holanda / Dutch. Todos los derechos reservados sobre el proyecto y sus elementos originales.',
     betaNotice: 'HOLANDA está en beta. El modo online sigue en desarrollo; por ahora, solo están disponibles las partidas contra bots.',
     back: 'Volver',
     joinCode: 'Unirse con código',

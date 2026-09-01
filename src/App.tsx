@@ -281,8 +281,10 @@ export default function App() {
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="info-modal-title">{translations[locale].infoTitle}</h2>
-            <p>{translations[locale].infoInstallSectionTitle}</p>
+            <p className="modal-section-title">{translations[locale].infoInstallSectionTitle}</p>
             <InstallInstructions locale={locale} />
+            <h3 className="modal-section-title">{translations[locale].licenseTitle}</h3>
+            <p className="modal-license-text">{translations[locale].licenseBody}</p>
             <div className="modal-actions">
               <Button onClick={() => setShowInfo(false)}>{translations[locale].installDismiss}</Button>
             </div>
