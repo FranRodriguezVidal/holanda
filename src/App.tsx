@@ -90,7 +90,7 @@ function HomeScreen({ locale, onStart, onLanguageChange }: { locale: Locale; onS
   );
 }
 
-type MenuScreen = 'home' | 'mode-select' | 'game';
+type MenuScreen = 'home' | 'mode-select' | 'offline-soon' | 'game';
 
 function ModeSelectScreen({
   locale,
@@ -112,8 +112,7 @@ function ModeSelectScreen({
           {text.betaNotice}
         </p>
         <div className="mode-actions">
-          <button className="mode-button" type="button" disabled aria-describedby="online-mode-notice">
-          {/*<button className="mode-button" type="button" onClick={onOffline}> */}
+          <button className="mode-button" type="button" onClick={onOffline}>
             <strong>{text.offlineBot}</strong>
             <span>{text.offlineBotDescription}</span>
           </button>
@@ -126,6 +125,24 @@ function ModeSelectScreen({
             <span>{text.joinMatchDescription}</span>
           </button>
         </div>
+        <div className="hero-panel__actions">
+          <Button variant="secondary" onClick={onBack}>
+            {text.back}
+          </Button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function OfflineSoonScreen({ locale, onBack }: { locale: Locale; onBack: () => void }) {
+  const text = translations[locale];
+
+  return (
+    <main className="screen screen--home" aria-label="HOLANDA offline mode">
+      <section className="hero-panel">
+        <h1>H♦L♥ND♠</h1>
+        <p>{text.offlineComingSoon}</p>
         <div className="hero-panel__actions">
           <Button variant="secondary" onClick={onBack}>
             {text.back}
@@ -165,15 +182,13 @@ function GameScreen({ locale, onBack }: { locale: Locale; onBack: () => void }) 
 export default function App() {
   const [screen, setScreen] = useState<MenuScreen>('home');
   const [locale, setLocale] = useState<Locale>(getInitialLocale);
-  const { resetGame } = useGameStore();
 
   useEffect(() => {
     localStorage.setItem('holanda.locale', locale);
   }, [locale]);
 
-  const handleStart = () => {
-    resetGame(players);
-    setScreen('game');
+  const handleOffline = () => {
+    setScreen('offline-soon');
   };
 
   return (
@@ -195,7 +210,9 @@ export default function App() {
       {screen === 'home' ? (
         <HomeScreen locale={locale} onStart={() => setScreen('mode-select')} onLanguageChange={setLocale} />
       ) : screen === 'mode-select' ? (
-        <ModeSelectScreen locale={locale} onBack={() => setScreen('home')} onOffline={handleStart} />
+        <ModeSelectScreen locale={locale} onBack={() => setScreen('home')} onOffline={handleOffline} />
+      ) : screen === 'offline-soon' ? (
+        <OfflineSoonScreen locale={locale} onBack={() => setScreen('mode-select')} />
       ) : (
         <GameScreen locale={locale} onBack={() => setScreen('mode-select')} />
       )}
