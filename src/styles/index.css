@@ -18,6 +18,56 @@
   --radius: 20px;
   --surface: #101e30;
   --surface-2: #152843;
+  --app-brightness: 1;
+  --app-background:
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 35%),
+    linear-gradient(180deg, #020817 0%, #07111d 100%);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #e6edf7;
+  --bg-elevated: #ffffff;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel-border: rgba(30, 41, 59, 0.2);
+  --accent: #0369a1;
+  --accent-strong: #0284c7;
+  --secondary: #7e22ce;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --card-front: #ffffff;
+  --card-back: linear-gradient(135deg, #bfdbfe 0%, #60a5fa 100%);
+  --shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+  --surface: #f8fafc;
+  --surface-2: #e2e8f0;
+  --home-glow: rgba(14, 165, 233, 0.16);
+  --hero-background: rgba(255, 255, 255, 0.82);
+  --mode-background: rgba(255, 255, 255, 0.78);
+  --mode-hover-background: rgba(186, 230, 253, 0.7);
+  --modal-background: rgba(255, 255, 255, 0.97);
+  --modal-overlay: rgba(15, 23, 42, 0.38);
+  --control-background: rgba(255, 255, 255, 0.86);
+  --utility-background: rgba(255, 255, 255, 0.9);
+  --game-table-background: rgba(255, 255, 255, 0.72);
+  --pile-background: rgba(226, 232, 240, 0.82);
+  --seat-background: rgba(255, 255, 255, 0.8);
+  --app-background:
+    radial-gradient(circle at top, rgba(14, 165, 233, 0.16), transparent 35%),
+    linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+:root {
+  --home-glow: rgba(59, 130, 246, 0.15);
+  --hero-background: rgba(15, 23, 42, 0.78);
+  --mode-background: rgba(15, 23, 42, 0.8);
+  --mode-hover-background: rgba(30, 64, 112, 0.72);
+  --modal-background: rgba(15, 23, 42, 0.96);
+  --modal-overlay: rgba(2, 8, 23, 0.72);
+  --control-background: rgba(15, 23, 42, 0.8);
+  --utility-background: rgba(15, 23, 42, 0.88);
+  --game-table-background: rgba(15, 23, 42, 0.6);
+  --pile-background: rgba(15, 23, 42, 0.55);
+  --seat-background: rgba(15, 23, 42, 0.7);
 }
 
 * {
@@ -28,9 +78,7 @@ html, body, #root {
   margin: 0;
   height: 100%;
   font-family: Inter, 'Segoe UI', sans-serif;
-  background:
-    radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 35%),
-    linear-gradient(180deg, #020817 0%, #07111d 100%);
+  background: var(--app-background);
   color: var(--text);
   overflow: hidden;
 }
@@ -63,6 +111,7 @@ textarea:focus-visible {
 #root {
   width: 100%;
   height: 100%;
+  filter: brightness(var(--app-brightness));
 }
 
 .screen {
@@ -79,7 +128,7 @@ textarea:focus-visible {
   isolation: isolate;
   overflow: hidden;
   position: relative;
-  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.15), transparent 35%);
+  background: radial-gradient(circle at center, var(--home-glow), transparent 35%);
 }
 
 .falling-cards {
@@ -108,7 +157,7 @@ textarea:focus-visible {
   position: relative;
   z-index: 1;
   width: min(100%, 560px);
-  background: rgba(15, 23, 42, 0.78);
+  background: var(--hero-background);
   backdrop-filter: blur(12px);
   border: 1px solid var(--panel-border);
   border-radius: 28px;
@@ -212,7 +261,7 @@ textarea:focus-visible {
   padding: 1rem 1.25rem;
   color: var(--text);
   text-align: left;
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--mode-background);
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 16px;
   transition: transform 200ms ease, border-color 200ms ease, background 200ms ease;
@@ -220,7 +269,7 @@ textarea:focus-visible {
 
 .mode-button:hover,
 .mode-button:focus-visible {
-  background: rgba(30, 64, 112, 0.72);
+  background: var(--mode-hover-background);
   border-color: rgba(125, 211, 252, 0.7);
   transform: translateY(-2px);
 }
@@ -231,7 +280,7 @@ textarea:focus-visible {
 }
 
 .mode-button:disabled:hover {
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--mode-background);
   border-color: rgba(148, 163, 184, 0.25);
   transform: none;
 }
@@ -273,7 +322,7 @@ textarea:focus-visible {
   align-items: center;
   gap: 0.5rem;
   padding: 0.35rem;
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--control-background);
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 999px;
 }
@@ -294,7 +343,7 @@ textarea:focus-visible {
   padding: 0;
   color: var(--text);
   place-items: center;
-  background: rgba(15, 23, 42, 0.88);
+  background: var(--utility-background);
   border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 50%;
   box-shadow: 0 8px 20px rgba(2, 8, 23, 0.28);
@@ -395,7 +444,7 @@ textarea:focus-visible {
 }
 
 .button--secondary {
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--control-background);
   color: var(--text);
   border: 1px solid rgba(148, 163, 184, 0.25);
 }
@@ -428,7 +477,7 @@ textarea:focus-visible {
   width: 100%;
   margin: 0 auto;
   padding: 1rem;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--game-table-background);
   border: 1px solid var(--panel-border);
   border-radius: 32px;
   box-shadow: var(--shadow);
@@ -482,7 +531,7 @@ textarea:focus-visible {
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--pile-background);
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
@@ -501,7 +550,7 @@ textarea:focus-visible {
 }
 
 .player-seat {
-  background: rgba(15, 23, 42, 0.7);
+  background: var(--seat-background);
   border: 1px solid rgba(148, 163, 184, 0.15);
   border-radius: 20px;
   padding: 0.9rem;
@@ -642,7 +691,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgba(2, 8, 23, 0.72);
+  background: var(--modal-overlay);
   backdrop-filter: blur(4px);
 }
 
@@ -650,7 +699,7 @@ textarea:focus-visible {
   width: min(100%, 440px);
   max-height: 90vh;
   overflow-y: auto;
-  background: rgba(15, 23, 42, 0.96);
+  background: var(--modal-background);
   border: 1px solid var(--panel-border);
   border-radius: 20px;
   box-shadow: var(--shadow);
@@ -719,6 +768,79 @@ textarea:focus-visible {
 .modal-actions .button {
   flex: 1 1 auto;
   justify-content: center;
+}
+
+.settings-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.settings-control {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.settings-control label,
+.theme-selector legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.settings-control output {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-control input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent-strong);
+}
+
+.theme-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.theme-selector legend {
+  width: 100%;
+}
+
+.theme-selector label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.update-notice {
+  position: fixed;
+  z-index: 40;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(420px, calc(100vw - 2rem));
+  padding: 0.75rem;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.update-notice span {
+  font-size: 0.84rem;
+  line-height: 1.35;
 }
 
 .install-instructions {

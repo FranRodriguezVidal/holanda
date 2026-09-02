@@ -8,6 +8,22 @@ import { useGameStore } from './store/useGameStore';
 import { isMobileDevice, isStandaloneDisplayMode } from './utils/device';
 
 const players = ['Ana', 'Bruno', 'Carmen', 'Diego'];
+const SETTINGS_KEY = 'holanda.settings';
+const INSTALL_PROMPT_DISMISSED_KEY = 'holanda.installPromptDismissed';
+
+type Theme = 'dark' | 'light';
+
+interface AppSettings {
+  brightness: number;
+  musicVolume: number;
+  theme: Theme;
+}
+
+const defaultSettings: AppSettings = {
+  brightness: 100,
+  musicVolume: 50,
+  theme: 'dark',
+};
 const fallingCardImages = [
   '/inicio_animacion/trebol.png',
   '/inicio_animacion/picas.jpg',
@@ -33,6 +49,37 @@ function getInitialLocale(): Locale {
   }
 
   return getDefaultLocale();
+}
+
+function getInitialSettings(): AppSettings {
+  const savedSettings = localStorage.getItem(SETTINGS_KEY);
+  if (!savedSettings) {
+    return defaultSettings;
+  }
+
+  try {
+    const parsedSettings: unknown = JSON.parse(savedSettings);
+    if (
+      typeof parsedSettings === 'object' &&
+      parsedSettings !== null &&
+      'brightness' in parsedSettings &&
+      'musicVolume' in parsedSettings &&
+      'theme' in parsedSettings &&
+      typeof parsedSettings.brightness === 'number' &&
+      typeof parsedSettings.musicVolume === 'number' &&
+      (parsedSettings.theme === 'dark' || parsedSettings.theme === 'light')
+    ) {
+      return {
+        brightness: Math.min(100, Math.max(0, parsedSettings.brightness)),
+        musicVolume: Math.min(100, Math.max(0, parsedSettings.musicVolume)),
+        theme: parsedSettings.theme,
+      };
+    }
+  } catch (error) {
+    console.warn('Unable to read HOLANDA settings from local storage.', error);
+  }
+
+  return defaultSettings;
 }
 
 function LanguageSelector({
@@ -103,9 +150,16 @@ function HomeScreen({
   );
 }
 
-type MenuScreen = 'home' | 'mode-select' | 'offline-difficulty' | 'offline-soon' | 'game';
+type MenuScreen =
+  | 'home'
+  | 'mode-select'
+  | 'offline-difficulty'
+  | 'offline-participants'
+  | 'offline-soon'
+  | 'game';
 
 type BotDifficulty = 'beginner' | 'amateur' | 'professional' | 'legend';
+type ParticipantCount = 2 | 3 | 4;
 
 function ModeSelectScreen({
   locale,
@@ -198,6 +252,48 @@ function OfflineDifficultyScreen({
   );
 }
 
+function OfflineParticipantsScreen({
+  locale,
+  onBack,
+  onSelectParticipants,
+  isMobileBrowser,
+}: {
+  locale: Locale;
+  onBack: () => void;
+  onSelectParticipants: (participantCount: ParticipantCount) => void;
+  isMobileBrowser: boolean;
+}) {
+  const text = translations[locale];
+
+  return (
+    <main className="screen screen--home" aria-label="HOLANDA participant selection">
+      <section className={isMobileBrowser ? 'hero-panel hero-panel--compact' : 'hero-panel'}>
+        <h1>H♦L♥ND♠</h1>
+        <p>{text.chooseParticipants}</p>
+        <div className="mode-actions">
+          <button className="mode-button" type="button" onClick={() => onSelectParticipants(2)}>
+            <strong>2</strong>
+            <span>{text.participants}</span>
+          </button>
+          <button className="mode-button" type="button" onClick={() => onSelectParticipants(3)}>
+            <strong>3</strong>
+            <span>{text.participants}</span>
+          </button>
+          <button className="mode-button" type="button" onClick={() => onSelectParticipants(4)}>
+            <strong>4</strong>
+            <span>{text.participants}</span>
+          </button>
+        </div>
+        <div className="hero-panel__actions">
+          <Button variant="secondary" onClick={onBack}>
+            {text.back}
+          </Button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function OfflineSoonScreen({ locale, onBack }: { locale: Locale; onBack: () => void }) {
   const text = translations[locale];
 
@@ -242,8 +338,6 @@ function GameScreen({ locale, onBack }: { locale: Locale; onBack: () => void }) 
   );
 }
 
-const INSTALL_PROMPT_DISMISSED_KEY = 'holanda.installPromptDismissed';
-
 export default function App() {
   const [screen, setScreen] = useState<MenuScreen>('home');
   const [locale, setLocale] = useState<Locale>(getInitialLocale);
@@ -253,16 +347,38 @@ export default function App() {
     return isMobileDevice() && !isStandaloneDisplayMode() && !alreadyDismissed;
   });
   const [showInfo, setShowInfo] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>(getInitialSettings);
 
   useEffect(() => {
     localStorage.setItem('holanda.locale', locale);
   }, [locale]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.theme;
+    document.documentElement.style.setProperty(
+      '--app-brightness',
+      `${Math.max(0.35, settings.brightness / 100)}`,
+    );
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }, [settings]);
+
+  useEffect(() => {
+    const markUpdateAvailable = () => setUpdateAvailable(true);
+    window.addEventListener('holanda-update-available', markUpdateAvailable);
+    return () => window.removeEventListener('holanda-update-available', markUpdateAvailable);
+  }, []);
 
   const handleOffline = () => {
     setScreen('offline-difficulty');
   };
 
   const handleSelectDifficulty = () => {
+    setScreen('offline-participants');
+  };
+
+  const handleSelectParticipants = () => {
     setScreen('offline-soon');
   };
 
@@ -273,6 +389,10 @@ export default function App() {
   const dismissInstallPromptForever = () => {
     localStorage.setItem(INSTALL_PROMPT_DISMISSED_KEY, 'true');
     setShowInstallPrompt(false);
+  };
+
+  const applyUpdate = () => {
+    window.dispatchEvent(new Event('holanda-apply-update'));
   };
 
   return (
@@ -290,7 +410,13 @@ export default function App() {
             <path d="M8 7v4M8 4.5v.1" />
           </svg>
         </button>
-        <button type="button" className="utility-button" aria-label="Settings" title="Settings">
+        <button
+          type="button"
+          className="utility-button"
+          aria-label="Settings"
+          title="Settings"
+          onClick={() => setShowSettings(true)}
+        >
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M6.3 1.8h3.4l.5 1.5 1.4.6 1.5-.5 1.7 2.9-1.1 1.1v1.2l1.1 1.1-1.7 2.9-1.5-.5-1.4.6-.5 1.5H6.3l-.5-1.5-1.4-.6-1.5.5-1.7-2.9 1.1-1.1V7.4L2.2 6.3l1.7-2.9 1.5.5 1.4-.6z" />
             <circle cx="8" cy="8" r="2.1" />
@@ -318,8 +444,15 @@ export default function App() {
           onSelectDifficulty={handleSelectDifficulty}
           isMobileBrowser={isMobileBrowser}
         />
+      ) : screen === 'offline-participants' ? (
+        <OfflineParticipantsScreen
+          locale={locale}
+          onBack={() => setScreen('offline-difficulty')}
+          onSelectParticipants={handleSelectParticipants}
+          isMobileBrowser={isMobileBrowser}
+        />
       ) : screen === 'offline-soon' ? (
-        <OfflineSoonScreen locale={locale} onBack={() => setScreen('offline-difficulty')} />
+        <OfflineSoonScreen locale={locale} onBack={() => setScreen('offline-participants')} />
       ) : (
         <GameScreen locale={locale} onBack={() => setScreen('mode-select')} />
       )}
@@ -329,6 +462,89 @@ export default function App() {
           onDismiss={dismissInstallPrompt}
           onDontShowAgain={dismissInstallPromptForever}
         />
+      )}
+      {updateAvailable && (
+        <div className="update-notice" role="status">
+          <span>{translations[locale].updateAvailable}</span>
+          <Button onClick={applyUpdate}>{translations[locale].update}</Button>
+        </div>
+      )}
+      {showSettings && (
+        <div className="modal-overlay" role="presentation" onClick={() => setShowSettings(false)}>
+          <section
+            className="modal-panel settings-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="settings-modal-title">{translations[locale].settingsTitle}</h2>
+            <div className="settings-control">
+              <label htmlFor="brightness">
+                {translations[locale].brightness}
+                <output htmlFor="brightness">{settings.brightness}%</output>
+              </label>
+              <input
+                id="brightness"
+                type="range"
+                min="0"
+                max="100"
+                value={settings.brightness}
+                onChange={(event) =>
+                  setSettings((currentSettings) => ({
+                    ...currentSettings,
+                    brightness: Number(event.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="settings-control">
+              <label htmlFor="music-volume">
+                {translations[locale].musicVolume}
+                <output htmlFor="music-volume">{settings.musicVolume}%</output>
+              </label>
+              <input
+                id="music-volume"
+                type="range"
+                min="0"
+                max="100"
+                value={settings.musicVolume}
+                onChange={(event) =>
+                  setSettings((currentSettings) => ({
+                    ...currentSettings,
+                    musicVolume: Number(event.target.value),
+                  }))
+                }
+              />
+            </div>
+            <fieldset className="theme-selector">
+              <legend>{translations[locale].theme}</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="theme"
+                  checked={settings.theme === 'dark'}
+                  onChange={() => setSettings((currentSettings) => ({ ...currentSettings, theme: 'dark' }))}
+                />
+                {translations[locale].darkTheme}
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="theme"
+                  checked={settings.theme === 'light'}
+                  onChange={() => setSettings((currentSettings) => ({ ...currentSettings, theme: 'light' }))}
+                />
+                {translations[locale].lightTheme}
+              </label>
+            </fieldset>
+            <div className="modal-actions">
+              <Button variant="secondary" onClick={() => setShowSettings(false)}>
+                {translations[locale].installDismiss}
+              </Button>
+            </div>
+          </section>
+        </div>
       )}
       {showInfo && (
         <div className="modal-overlay" role="presentation" onClick={() => setShowInfo(false)}>
