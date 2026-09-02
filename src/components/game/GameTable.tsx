@@ -13,6 +13,53 @@ export function GameTable({ state, locale }: GameTableProps) {
   const topDeckCard = state.deck[0];
   const topDiscardCard = state.discardPile[0];
   const labels = translations[locale];
+  const isTwoPlayerTable = state.players.length === 2;
+
+  if (isTwoPlayerTable) {
+    const [localPlayer, opponent] = state.players;
+    const visualDiscardCard = topDiscardCard ?? state.deck[1];
+
+    if (!localPlayer || !opponent) {
+      return null;
+    }
+
+    return (
+      <section className="game-table game-table--two-player" aria-label={labels.gameTableAria}>
+        <div className="two-player-table">
+          <article className="two-player-seat two-player-seat--opponent">
+            <h3>{opponent.name}</h3>
+            <div className="two-player-hand" aria-label={`${opponent.name} hand`}>
+              {opponent.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+
+          <div className="two-player-piles" aria-label={labels.gameTableAria}>
+            <div className="table__pile table__pile--deck" aria-label={labels.deckAria}>
+              {topDeckCard ? <Card card={topDeckCard} faceUp={false} disabled /> : <div className="pile-empty">{labels.empty}</div>}
+            </div>
+            <div className="table__pile table__pile--discard" aria-label={labels.discardPile}>
+              {visualDiscardCard ? (
+                <Card card={visualDiscardCard} faceUp disabled />
+              ) : (
+                <div className="pile-empty">{labels.discardPile}</div>
+              )}
+            </div>
+          </div>
+
+          <article className="two-player-seat two-player-seat--local">
+            <h3>{localPlayer.name}</h3>
+            <div className="two-player-hand" aria-label={`${localPlayer.name} hand`}>
+              {localPlayer.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="game-table" aria-label={labels.gameTableAria}>

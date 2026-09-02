@@ -6,10 +6,13 @@ import { InstallPromptModal } from './components/ui/InstallPromptModal';
 import { getDefaultLocale, translations, type Locale } from './i18n/translations';
 import { useGameStore } from './store/useGameStore';
 import { isMobileDevice, isStandaloneDisplayMode } from './utils/device';
+import { getRandomBotName } from './utils/botNames';
+import { getRandomExitPhrase } from './utils/exitPhrases';
 
-const players = ['Ana', 'Bruno', 'Carmen', 'Diego'];
 const SETTINGS_KEY = 'holanda.settings';
 const INSTALL_PROMPT_DISMISSED_KEY = 'holanda.installPromptDismissed';
+const WHATS_NEW_KEY = 'holanda.whatsNewSeen';
+const WHATS_NEW_VERSION = '2026-09-03';
 
 type Theme = 'dark' | 'light';
 
@@ -312,28 +315,129 @@ function OfflineSoonScreen({ locale, onBack }: { locale: Locale; onBack: () => v
   );
 }
 
-function GameScreen({ locale, onBack }: { locale: Locale; onBack: () => void }) {
-  const { game, resetGame } = useGameStore();
+const difficultyLabelKey: Record<BotDifficulty, 'matchBeginner' | 'matchAmateur' | 'matchProfessional' | 'matchLegend'> = {
+  beginner: 'matchBeginner',
+  amateur: 'matchAmateur',
+  professional: 'matchProfessional',
+  legend: 'matchLegend',
+};
+
+function GameScreen({
+  locale,
+  difficulty,
+  onBack,
+}: {
+  locale: Locale;
+  difficulty: BotDifficulty | null;
+  onBack: () => void;
+}) {
+  const { game } = useGameStore();
   const text = translations[locale];
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [exitPhrase, setExitPhrase] = useState('');
+  const [showRules, setShowRules] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+
+  const matchLabel = difficulty ? text[difficultyLabelKey[difficulty]] : text.match;
 
   return (
     <main className="screen screen--game" aria-label="HOLANDA game table">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">{text.match}</p>
-          <h2>{game.id}</h2>
-        </div>
+      <header className="topbar topbar--game">
+        <p className="eyebrow eyebrow--inline">{matchLabel}</p>
         <div className="topbar__actions">
-          <Button variant="secondary" onClick={() => resetGame(players)}>
-            {text.resetTable}
-          </Button>
-          <Button variant="secondary" onClick={onBack}>
+          <button
+            type="button"
+            className="utility-button"
+            aria-label={text.rulesButton}
+            title={text.rulesButton}
+            onClick={() => setShowRules(true)}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="8" cy="8" r="6.5" />
+              <path d="M8 7v4M8 4.5v.1" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="utility-button"
+            aria-label={text.reportButton}
+            title={text.reportButton}
+            onClick={() => setShowReport(true)}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" className="icon--wrench">
+              <path d="M10.6 2.2a3.1 3.1 0 0 0-3.9 3.7L2.4 10.2a1.5 1.5 0 0 0 2.1 2.1l4.3-4.3a3.1 3.1 0 0 0 3.7-3.9l-1.7 1.7-1.5-.4-.4-1.5z" />
+            </svg>
+          </button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setExitPhrase(getRandomExitPhrase(locale));
+              setShowExitConfirm(true);
+            }}
+          >
             {text.exit}
           </Button>
         </div>
       </header>
 
       <GameTable state={game} locale={locale} />
+
+      {showRules && (
+        <div className="modal-overlay" role="presentation" onClick={() => setShowRules(false)}>
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rules-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="rules-modal-title">{text.rulesTitle}</h2>
+            <p>{text.rulesBody}</p>
+            <div className="modal-actions">
+              <Button onClick={() => setShowRules(false)}>{text.installDismiss}</Button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showReport && (
+        <div className="modal-overlay" role="presentation" onClick={() => setShowReport(false)}>
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="report-modal-title">{text.reportTitle}</h2>
+            <p>{text.reportBody}</p>
+            <div className="modal-actions">
+              <Button onClick={() => setShowReport(false)}>{text.installDismiss}</Button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showExitConfirm && (
+        <div className="modal-overlay" role="presentation" onClick={() => setShowExitConfirm(false)}>
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exit-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="exit-modal-title">{text.exitConfirmTitle}</h2>
+            <p>{exitPhrase}</p>
+            <div className="modal-actions">
+              <Button variant="secondary" onClick={() => setShowExitConfirm(false)}>
+                {text.exitConfirmCancel}
+              </Button>
+              <Button onClick={onBack}>{text.exitConfirmAccept}</Button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
@@ -350,6 +454,12 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(getInitialSettings);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<BotDifficulty | null>(null);
+  const [showSettingsReport, setShowSettingsReport] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState<boolean>(
+    () => localStorage.getItem(WHATS_NEW_KEY) !== WHATS_NEW_VERSION,
+  );
+  const { resetGame } = useGameStore();
 
   useEffect(() => {
     localStorage.setItem('holanda.locale', locale);
@@ -374,11 +484,18 @@ export default function App() {
     setScreen('offline-difficulty');
   };
 
-  const handleSelectDifficulty = () => {
+  const handleSelectDifficulty = (difficulty: BotDifficulty) => {
+    setSelectedDifficulty(difficulty);
     setScreen('offline-participants');
   };
 
-  const handleSelectParticipants = () => {
+  const handleSelectParticipants = (participantCount: ParticipantCount) => {
+    if (participantCount === 2) {
+      resetGame(locale === 'es' ? ['Tú', getRandomBotName()] : ['You', getRandomBotName()]);
+      setScreen('game');
+      return;
+    }
+
     setScreen('offline-soon');
   };
 
@@ -395,8 +512,34 @@ export default function App() {
     window.dispatchEvent(new Event('holanda-apply-update'));
   };
 
+  const dismissWhatsNew = () => {
+    localStorage.setItem(WHATS_NEW_KEY, WHATS_NEW_VERSION);
+    setShowWhatsNew(false);
+  };
+
   return (
     <>
+      {showWhatsNew && (
+        <div className="modal-overlay" role="presentation" onClick={dismissWhatsNew}>
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="whats-new-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="whats-new-modal-title">{translations[locale].whatsNewTitle}</h2>
+            <ul className="whats-new-list">
+              <li>{translations[locale].whatsNewBoard}</li>
+              <li>{translations[locale].whatsNewSettings}</li>
+              <li>{translations[locale].whatsNewMore}</li>
+            </ul>
+            <div className="modal-actions">
+              <Button onClick={dismissWhatsNew}>{translations[locale].installDismiss}</Button>
+            </div>
+          </section>
+        </div>
+      )}
       <nav className="app-utilities" aria-label="Application utilities">
         <button
           type="button"
@@ -454,7 +597,11 @@ export default function App() {
       ) : screen === 'offline-soon' ? (
         <OfflineSoonScreen locale={locale} onBack={() => setScreen('offline-participants')} />
       ) : (
-        <GameScreen locale={locale} onBack={() => setScreen('mode-select')} />
+        <GameScreen
+          locale={locale}
+          difficulty={selectedDifficulty}
+          onBack={() => setScreen('offline-participants')}
+        />
       )}
       {showInstallPrompt && (
         <InstallPromptModal
@@ -539,9 +686,35 @@ export default function App() {
               </label>
             </fieldset>
             <div className="modal-actions">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowSettings(false);
+                  setShowSettingsReport(true);
+                }}
+              >
+                {translations[locale].reportButton}
+              </Button>
               <Button variant="secondary" onClick={() => setShowSettings(false)}>
                 {translations[locale].installDismiss}
               </Button>
+            </div>
+          </section>
+        </div>
+      )}
+      {showSettingsReport && (
+        <div className="modal-overlay" role="presentation" onClick={() => setShowSettingsReport(false)}>
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-report-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="settings-report-modal-title">{translations[locale].reportTitle}</h2>
+            <p>{translations[locale].reportBody}</p>
+            <div className="modal-actions">
+              <Button onClick={() => setShowSettingsReport(false)}>{translations[locale].installDismiss}</Button>
             </div>
           </section>
         </div>
