@@ -622,6 +622,134 @@ textarea:focus-visible {
   aspect-ratio: auto;
 }
 
+.game-table--three-player {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+}
+
+.three-player-table {
+  position: relative;
+  width: 100%;
+  min-height: 480px;
+  overflow: hidden;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at center, rgba(52, 211, 153, 0.19), transparent 48%),
+    linear-gradient(145deg, rgba(15, 118, 110, 0.2), rgba(34, 197, 94, 0.08));
+}
+
+.three-player-seat {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+}
+
+.three-player-seat h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-shadow: 0 2px 8px rgba(2, 8, 23, 0.6);
+}
+
+.three-player-seat--left {
+  top: 50%;
+  left: 0.75rem;
+  transform: translateY(-50%);
+}
+
+.three-player-seat--right {
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+}
+
+.three-player-seat--local {
+  bottom: 1.25rem;
+  left: 50%;
+  width: min(70%, 420px);
+  transform: translateX(-50%);
+}
+
+.three-player-hand {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.three-player-seat--left .three-player-hand,
+.three-player-seat--right .three-player-hand {
+  flex-direction: column;
+  align-items: center;
+  width: auto;
+}
+
+.three-player-hand .card {
+  width: clamp(50px, 9vw, 72px);
+  height: auto;
+  aspect-ratio: 0.69;
+  margin-left: clamp(4px, 0.7vw, 8px);
+  box-shadow: 0 10px 18px rgba(2, 8, 23, 0.42);
+}
+
+.three-player-seat--left .three-player-hand .card,
+.three-player-seat--right .three-player-hand .card {
+  --card-w: clamp(58px, 10vw, 78px);
+  width: var(--card-w);
+  margin-left: 0;
+  margin-top: calc(clamp(4px, 0.7vw, 8px) - (var(--card-w) / 0.69 - var(--card-w)));
+}
+
+.three-player-seat--left .three-player-hand .card {
+  transform: rotate(90deg);
+}
+
+.three-player-seat--right .three-player-hand .card {
+  transform: rotate(-90deg);
+}
+
+.three-player-seat--left .three-player-hand .card:first-child,
+.three-player-seat--right .three-player-hand .card:first-child {
+  margin-top: 0;
+}
+
+.three-player-hand .card:first-child {
+  margin-left: 0;
+}
+
+.three-player-seat--local .three-player-hand .card {
+  width: clamp(58px, 10vw, 78px);
+}
+
+.three-player-piles {
+  position: absolute;
+  z-index: 2;
+  top: 52%;
+  left: 50%;
+  display: flex;
+  gap: clamp(0.8rem, 3vw, 1.75rem);
+  align-items: center;
+  transform: translate(-50%, -50%);
+}
+
+.three-player-piles .table__pile {
+  width: clamp(70px, 13vw, 100px);
+  height: auto;
+  aspect-ratio: 0.69;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.three-player-piles .card {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
 .game-table__header {
   display: flex;
   justify-content: space-between;
@@ -824,6 +952,38 @@ textarea:focus-visible {
 
   .hero-panel {
     padding: 1.25rem;
+  }
+
+  .three-player-table {
+    min-height: 560px;
+  }
+
+  .three-player-seat--left {
+    left: 0.35rem;
+  }
+
+  .three-player-seat--right {
+    right: 0.35rem;
+  }
+
+  .three-player-seat h3 {
+    font-size: 0.75rem;
+  }
+
+  .three-player-hand .card {
+    width: clamp(38px, 12vw, 54px);
+    margin-left: clamp(2px, 1vw, 6px);
+  }
+
+  .three-player-seat--left .three-player-hand .card,
+  .three-player-seat--right .three-player-hand .card {
+    --card-w: clamp(38px, 12vw, 54px);
+    width: var(--card-w);
+    margin-top: calc(clamp(2px, 1vw, 6px) - (var(--card-w) / 0.69 - var(--card-w)));
+  }
+
+  .three-player-piles {
+    top: 56%;
   }
 }
 

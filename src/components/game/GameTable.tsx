@@ -14,6 +14,62 @@ export function GameTable({ state, locale }: GameTableProps) {
   const topDiscardCard = state.discardPile[0];
   const labels = translations[locale];
   const isTwoPlayerTable = state.players.length === 2;
+  const isThreePlayerTable = state.players.length === 3;
+
+  if (isThreePlayerTable) {
+    const [localPlayer, leftPlayer, rightPlayer] = state.players;
+    const visualDiscardCard = topDiscardCard ?? state.deck[1];
+
+    if (!localPlayer || !leftPlayer || !rightPlayer) {
+      return null;
+    }
+
+    return (
+      <section className="game-table game-table--three-player" aria-label={labels.gameTableAria}>
+        <div className="three-player-table">
+          <article className="three-player-seat three-player-seat--left">
+            <h3>{leftPlayer.name}</h3>
+            <div className="three-player-hand" aria-label={`${leftPlayer.name} hand`}>
+              {leftPlayer.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+
+          <article className="three-player-seat three-player-seat--right">
+            <h3>{rightPlayer.name}</h3>
+            <div className="three-player-hand" aria-label={`${rightPlayer.name} hand`}>
+              {rightPlayer.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+
+          <div className="three-player-piles" aria-label={labels.gameTableAria}>
+            <div className="table__pile table__pile--deck" aria-label={labels.deckAria}>
+              {topDeckCard ? <Card card={topDeckCard} faceUp={false} disabled /> : <div className="pile-empty">{labels.empty}</div>}
+            </div>
+            <div className="table__pile table__pile--discard" aria-label={labels.discardPile}>
+              {visualDiscardCard ? (
+                <Card card={visualDiscardCard} faceUp disabled />
+              ) : (
+                <div className="pile-empty">{labels.discardPile}</div>
+              )}
+            </div>
+          </div>
+
+          <article className="three-player-seat three-player-seat--local">
+            <h3>{localPlayer.name}</h3>
+            <div className="three-player-hand" aria-label={`${localPlayer.name} hand`}>
+              {localPlayer.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+    );
+  }
 
   if (isTwoPlayerTable) {
     const [localPlayer, opponent] = state.players;
