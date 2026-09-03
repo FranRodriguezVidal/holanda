@@ -15,6 +15,71 @@ export function GameTable({ state, locale }: GameTableProps) {
   const labels = translations[locale];
   const isTwoPlayerTable = state.players.length === 2;
   const isThreePlayerTable = state.players.length === 3;
+  const isFourPlayerTable = state.players.length === 4;
+
+  if (isFourPlayerTable) {
+    const [localPlayer, topPlayer, leftPlayer, rightPlayer] = state.players;
+    const visualDiscardCard = topDiscardCard ?? state.deck[1];
+
+    if (!localPlayer || !topPlayer || !leftPlayer || !rightPlayer) {
+      return null;
+    }
+
+    return (
+      <section className="game-table game-table--four-player" aria-label={labels.gameTableAria}>
+        <div className="four-player-table">
+          <article className="four-player-seat four-player-seat--top">
+            <h3>{topPlayer.name}</h3>
+            <div className="four-player-hand" aria-label={`${topPlayer.name} hand`}>
+              {topPlayer.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+
+          <article className="four-player-seat four-player-seat--left">
+            <h3>{leftPlayer.name}</h3>
+            <div className="four-player-hand" aria-label={`${leftPlayer.name} hand`}>
+              {leftPlayer.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+
+          <article className="four-player-seat four-player-seat--right">
+            <h3>{rightPlayer.name}</h3>
+            <div className="four-player-hand" aria-label={`${rightPlayer.name} hand`}>
+              {rightPlayer.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+
+          <div className="four-player-piles" aria-label={labels.gameTableAria}>
+            <div className="table__pile table__pile--deck" aria-label={labels.deckAria}>
+              {topDeckCard ? <Card card={topDeckCard} faceUp={false} disabled /> : <div className="pile-empty">{labels.empty}</div>}
+            </div>
+            <div className="table__pile table__pile--discard" aria-label={labels.discardPile}>
+              {visualDiscardCard ? (
+                <Card card={visualDiscardCard} faceUp disabled />
+              ) : (
+                <div className="pile-empty">{labels.discardPile}</div>
+              )}
+            </div>
+          </div>
+
+          <article className="four-player-seat four-player-seat--local">
+            <h3>{localPlayer.name}</h3>
+            <div className="four-player-hand" aria-label={`${localPlayer.name} hand`}>
+              {localPlayer.hand.slice(0, 4).map((card) => (
+                <Card key={card.id} card={card} faceUp={false} disabled />
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+    );
+  }
 
   if (isThreePlayerTable) {
     const [localPlayer, leftPlayer, rightPlayer] = state.players;

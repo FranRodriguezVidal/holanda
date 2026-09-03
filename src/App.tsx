@@ -12,7 +12,7 @@ import { getRandomExitPhrase } from './utils/exitPhrases';
 const SETTINGS_KEY = 'holanda.settings';
 const INSTALL_PROMPT_DISMISSED_KEY = 'holanda.installPromptDismissed';
 const WHATS_NEW_KEY = 'holanda.whatsNewSeen';
-const WHATS_NEW_VERSION = '2026-09-03-2';
+const WHATS_NEW_VERSION = '2026-09-03-3';
 
 type Theme = 'dark' | 'light';
 
@@ -504,6 +504,20 @@ export default function App() {
         botTwo = getRandomBotName();
       }
       resetGame([localName, botOne, botTwo]);
+      setScreen('game');
+      return;
+    }
+
+    if (participantCount === 4) {
+      const localName = locale === 'es' ? 'Tú' : 'You';
+      const botNames: string[] = [];
+      while (botNames.length < 3) {
+        const candidate = getRandomBotName();
+        if (!botNames.includes(candidate)) {
+          botNames.push(candidate);
+        }
+      }
+      resetGame([localName, ...botNames]);
       setScreen('game');
       return;
     }
