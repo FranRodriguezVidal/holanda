@@ -998,6 +998,7 @@ textarea:focus-visible {
   font-weight: 800;
   font-size: 1.2rem;
   user-select: none;
+  cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
@@ -1024,6 +1025,77 @@ textarea:focus-visible {
 .card--disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.card:not(.card--disabled):hover {
+  transform: translateY(-4px);
+}
+
+.peek-hint,
+.power-hint,
+.snap-message,
+.turn-hint {
+  margin: 0 auto;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--panel-border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.turn-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.power-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.snap-message {
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fecaca;
+}
+
+.peek-status {
+  font-weight: 700;
+  text-align: center;
+}
+
+.drawn-card-area {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -118%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 5;
+}
+
+.drawn-card-hint {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+.drawn-card-area .card {
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.35), 0 14px 32px rgba(15, 23, 42, 0.45);
 }
 
 .card__value {
@@ -1274,6 +1346,16 @@ textarea:focus-visible {
 .modal-actions .button {
   flex: 1 1 auto;
   justify-content: center;
+}
+
+.winner-scores {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
 }
 
 .settings-panel {

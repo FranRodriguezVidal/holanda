@@ -2,6 +2,7 @@ import type { Card, CardRank, CardSuit } from '../types';
 
 const suits: CardSuit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const ranks: CardRank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const JOKER_COUNT = 2;
 
 export const createDeck = (): Card[] => {
   const deck: Card[] = [];
@@ -16,6 +17,16 @@ export const createDeck = (): Card[] => {
         isSelected: false,
       });
     }
+  }
+
+  for (let index = 0; index < JOKER_COUNT; index += 1) {
+    deck.push({
+      id: `joker-${index + 1}`,
+      suit: 'wild',
+      rank: 'JOKER',
+      faceUp: false,
+      isSelected: false,
+    });
   }
 
   return deck;

@@ -3,6 +3,7 @@ import { GameTable } from './components/game/GameTable';
 import { Button } from './components/ui/Button';
 import { InstallInstructions } from './components/ui/InstallInstructions';
 import { InstallPromptModal } from './components/ui/InstallPromptModal';
+import { getBotAction, getCardValue, type Card as GameCardType } from './game';
 import { getDefaultLocale, translations, type Locale } from './i18n/translations';
 import { useGameStore } from './store/useGameStore';
 import { isMobileDevice, isStandaloneDisplayMode } from './utils/device';
@@ -12,7 +13,7 @@ import { getRandomExitPhrase } from './utils/exitPhrases';
 const SETTINGS_KEY = 'holanda.settings';
 const INSTALL_PROMPT_DISMISSED_KEY = 'holanda.installPromptDismissed';
 const WHATS_NEW_KEY = 'holanda.whatsNewSeen';
-const WHATS_NEW_VERSION = '2026-09-03-3';
+const WHATS_NEW_VERSION = '2026-09-03-4';
 
 type Theme = 'dark' | 'light';
 
@@ -331,14 +332,234 @@ function GameScreen({
   difficulty: BotDifficulty | null;
   onBack: () => void;
 }) {
-  const { game } = useGameStore();
+  const {
+    game,
+    choosePeekAllowance,
+    peek,
+    beginPlay,
+    draw,
+    discardDrawn,
+    swapDrawn,
+    snap,
+    activatePower,
+    skipPower,
+    jackSwap,
+    finishJackReveal,
+    kingPunish,
+    declareHolanda,
+  } = useGameStore();
   const text = translations[locale];
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [exitPhrase, setExitPhrase] = useState('');
   const [showRules, setShowRules] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [snapMessage, setSnapMessage] = useState<string | null>(null);
+  const [introDismissed, setIntroDismissed] = useState(false);
+  const [peekCountdown, setPeekCountdown] = useState<number | null>(null);
+  const [peekRevealing, setPeekRevealing] = useState(false);
 
   const matchLabel = difficulty ? text[difficultyLabelKey[difficulty]] : text.match;
+  const localPlayer = game.players[0]!;
+  const isLocalTurn = game.currentPlayerId === localPlayer.id;
+  const peekedCount = localPlayer.hand.filter((card) => card.faceUp).length;
+  const startingPlayerName =
+    game.players.find((player) => player.id === game.currentPlayerId)?.name ?? '';
+
+  const isBotTurn =
+    game.phase === 'playing' || game.phase === 'special-power'
+      ? !isLocalTurn
+      : false;
+
+  const showIntroModal = game.phase === 'initial-peek' && !introDismissed;
+  const startingPlayerIsLocal = game.currentPlayerId === localPlayer.id;
+  const awaitingPeekAllowance = game.phase === 'initial-peek' && game.peekAllowance === undefined;
+
+  const handlePeekConfirm = () => {
+    if (game.phase !== 'initial-peek' || peekRevealing) {
+      return;
+    }
+    setPeekRevealing(true);
+    setPeekCountdown(null);
+    window.setTimeout(() => {
+      beginPlay();
+      setPeekRevealing(false);
+    }, 5000);
+  };
+
+  // Start the 10s countdown only after the intro modal has been dismissed
+  // and the starting player has chosen how many cards everyone may peek at.
+  // Reaching 0 acts only as a safeguard timeout that auto-confirms; the
+  // player's card selection itself is always manual (never auto-picked).
+  useEffect(() => {
+    if (
+      game.phase !== 'initial-peek' ||
+      !introDismissed ||
+      peekRevealing ||
+      game.peekAllowance === undefined
+    ) {
+      return;
+    }
+
+    if (peekCountdown === null) {
+      const startTimer = window.setTimeout(() => setPeekCountdown(10), 0);
+      return () => window.clearTimeout(startTimer);
+    }
+
+    if (peekCountdown <= 0) {
+      const confirmTimer = window.setTimeout(() => {
+        setPeekRevealing(true);
+        setPeekCountdown(null);
+        window.setTimeout(() => {
+          beginPlay();
+          setPeekRevealing(false);
+        }, 5000);
+      }, 0);
+      return () => window.clearTimeout(confirmTimer);
+    }
+
+    const timer = window.setTimeout(() => {
+      setPeekCountdown((current) => (current === null ? current : current - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [game.phase, game.peekAllowance, introDismissed, peekCountdown, peekRevealing, beginPlay]);
+
+  // If a bot is the starting player, it auto-decides the peek allowance
+  // shortly after the intro modal closes.
+  useEffect(() => {
+    if (
+      game.phase !== 'initial-peek' ||
+      !introDismissed ||
+      game.peekAllowance !== undefined ||
+      startingPlayerIsLocal
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const allowance = Math.floor(Math.random() * 3);
+      choosePeekAllowance(game.currentPlayerId, allowance);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [game.phase, game.peekAllowance, game.currentPlayerId, introDismissed, startingPlayerIsLocal, choosePeekAllowance]);
+
+  // Hide the card revealed by a J swap after a short delay, then advance turn.
+  useEffect(() => {
+    if (!game.jackRevealCardId || game.pendingPowerPlayerId !== localPlayer.id) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      finishJackReveal(localPlayer.id);
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [game.jackRevealCardId, game.pendingPowerPlayerId, localPlayer.id, finishJackReveal]);
+
+  useEffect(() => {
+    if (!isBotTurn) {
+      return;
+    }
+
+    const botId = game.currentPlayerId;
+    const timer = window.setTimeout(() => {
+      const action = getBotAction(game, botId);
+
+      if (action.kind === 'draw') {
+        draw(botId, action.source);
+        return;
+      }
+      if (action.kind === 'discard-drawn') {
+        discardDrawn(botId);
+        return;
+      }
+      if (action.kind === 'swap') {
+        swapDrawn(botId, action.handCardId);
+        return;
+      }
+      if (action.kind === 'snap') {
+        snap(botId, action.cardId);
+        return;
+      }
+      if (action.kind === 'use-power') {
+        if (game.pendingPower === 'J') {
+          const bot = game.players.find((player) => player.id === botId);
+          const selectedOwn = bot?.hand.find((card) => card.isSelected);
+          if (selectedOwn) {
+            jackSwap(botId, action.targetCardId);
+          } else {
+            activatePower(botId, action.targetCardId);
+          }
+        } else {
+          activatePower(botId, action.targetCardId);
+          window.setTimeout(() => skipPower(botId), 900);
+        }
+        return;
+      }
+      if (action.kind === 'punish') {
+        kingPunish(botId, action.targetPlayerId);
+        return;
+      }
+      if (action.kind === 'skip-power') {
+        skipPower(botId);
+      }
+    }, 1100);
+
+    return () => window.clearTimeout(timer);
+  }, [game, isBotTurn, draw, discardDrawn, swapDrawn, snap, activatePower, skipPower, jackSwap, kingPunish]);
+
+  const handleStartClose = () => {
+    setIntroDismissed(true);
+  };
+
+  const handleCardClick = (playerId: string, card: GameCardType) => {
+    if (game.phase === 'initial-peek') {
+      if (playerId === localPlayer.id && !peekRevealing) {
+        peek(playerId, card.id);
+      }
+      return;
+    }
+
+    if (game.phase === 'special-power' && game.pendingPowerPlayerId === localPlayer.id) {
+      if (game.pendingPower === 'J') {
+        const ownSelected = localPlayer.hand.find((entry) => entry.isSelected);
+        if (!ownSelected) {
+          if (playerId === localPlayer.id) {
+            activatePower(localPlayer.id, card.id);
+          }
+        } else if (playerId !== localPlayer.id) {
+          jackSwap(localPlayer.id, card.id);
+        }
+      } else if (game.pendingPower === 'Q') {
+        activatePower(localPlayer.id, card.id);
+        window.setTimeout(() => skipPower(localPlayer.id), 900);
+      }
+      return;
+    }
+
+    if (game.phase !== 'playing') {
+      return;
+    }
+
+    if (game.drawnCard && playerId === localPlayer.id && game.currentPlayerId === localPlayer.id) {
+      swapDrawn(playerId, card.id);
+      return;
+    }
+
+    // Snap attempt (any player can try when it's allowed in local mode).
+    if (playerId === localPlayer.id) {
+      const before = game.discardPile[0];
+      snap(playerId, card.id);
+      if (!before || before.rank !== card.rank) {
+        setSnapMessage(text.snapError);
+        window.setTimeout(() => setSnapMessage(null), 1800);
+      }
+    }
+  };
+
+  const canDraw = isLocalTurn && game.phase === 'playing' && !game.drawnCard;
+  const currentTurnPlayerName =
+    game.players.find((player) => player.id === game.currentPlayerId)?.name ?? '';
+  const canCallHolanda =
+    isLocalTurn && game.phase === 'playing' && !game.drawnCard && !game.holandaCallerId;
+  const winner = game.winnerId ? game.players.find((player) => player.id === game.winnerId) : null;
 
   return (
     <main className="screen screen--game" aria-label="HOLANDA game table">
@@ -380,7 +601,130 @@ function GameScreen({
         </div>
       </header>
 
-      <GameTable state={game} locale={locale} />
+      {game.phase === 'initial-peek' && introDismissed && awaitingPeekAllowance && (
+        <p className="peek-hint" role="status">
+          {startingPlayerIsLocal ? (
+            <>
+              {text.peekChooseAllowance}
+              <Button variant="secondary" onClick={() => choosePeekAllowance(localPlayer.id, 0)}>
+                {text.peekAllowanceNone}
+              </Button>
+              <Button variant="secondary" onClick={() => choosePeekAllowance(localPlayer.id, 1)}>
+                {text.peekAllowanceOne}
+              </Button>
+              <Button variant="secondary" onClick={() => choosePeekAllowance(localPlayer.id, 2)}>
+                {text.peekAllowanceTwo}
+              </Button>
+            </>
+          ) : (
+            <>
+              <strong>{startingPlayerName}</strong> {text.peekWaitingAllowance}
+            </>
+          )}
+        </p>
+      )}
+
+      {game.phase === 'initial-peek' && introDismissed && !awaitingPeekAllowance && (
+        <p className="peek-hint" role="status">
+          {peekRevealing ? (
+            text.peekRevealing
+          ) : (
+            <>
+              {text.peekAllowanceNotice}: {game.peekAllowance} · {text.peekSelected}: {peekedCount}
+              {peekCountdown !== null && ` · ${peekCountdown}s`} · {text.peekStartingPlayer}:{' '}
+              <strong>{startingPlayerName}</strong>{' '}
+              <Button variant="secondary" onClick={handlePeekConfirm}>
+                {text.startModalReady}
+              </Button>
+            </>
+          )}
+        </p>
+      )}
+
+      {game.phase === 'playing' && (
+        <p className="turn-hint" role="status">
+          {isLocalTurn ? (
+            <strong>{text.yourTurn}</strong>
+          ) : (
+            <>
+              {text.turnOf} <strong>{currentTurnPlayerName}</strong>
+            </>
+          )}
+          {game.holandaCallerId && ` · ${text.finalRoundActive}`}
+          {canCallHolanda && (
+            <Button variant="secondary" onClick={() => declareHolanda(localPlayer.id)}>
+              {text.holandaButton}
+            </Button>
+          )}
+        </p>
+      )}
+
+      {game.phase === 'special-power' && game.pendingPowerPlayerId === localPlayer.id && (
+        <p className="power-hint" role="status">
+          {game.pendingPower === 'J' && text.powerPromptJ}
+          {game.pendingPower === 'Q' && text.powerPromptQ}
+          {game.pendingPower === 'K' && text.powerPromptK}
+          {game.pendingPower === 'K' &&
+            game.players
+              .filter((player) => player.id !== localPlayer.id)
+              .map((player) => (
+                <Button
+                  key={player.id}
+                  variant="secondary"
+                  onClick={() => kingPunish(localPlayer.id, player.id)}
+                >
+                  {player.name}
+                </Button>
+              ))}
+          <Button variant="secondary" onClick={() => skipPower(localPlayer.id)}>
+            {text.powerSkip}
+          </Button>
+        </p>
+      )}
+
+      {snapMessage && (
+        <p className="snap-message" role="alert">
+          {snapMessage}
+        </p>
+      )}
+
+      <GameTable
+        state={game}
+        locale={locale}
+        localPlayerId={localPlayer?.id ?? ''}
+        onDrawDeck={canDraw ? () => draw(localPlayer!.id, 'deck') : undefined}
+        onDrawDiscard={canDraw ? () => draw(localPlayer!.id, 'discard') : undefined}
+        onCardClick={handleCardClick}
+        onDiscardDrawn={
+          game.drawnCard && isLocalTurn ? () => discardDrawn(localPlayer!.id) : undefined
+        }
+      />
+
+      {showIntroModal && (
+        <div className="modal-overlay" role="presentation">
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="start-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="start-modal-title">{text.startModalTitle}</h2>
+            <p>{text.startModalBody}</p>
+            <p>
+              <strong>
+                {game.currentPlayerId === localPlayer.id
+                  ? text.startModalYouStart
+                  : `${startingPlayerName} ${text.startModalStarts}`}
+              </strong>
+            </p>
+            <p>{text.startModalInstruction}</p>
+            <div className="modal-actions">
+              <Button onClick={handleStartClose}>{text.startModalReady}</Button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {showRules && (
         <div className="modal-overlay" role="presentation" onClick={() => setShowRules(false)}>
@@ -413,6 +757,34 @@ function GameScreen({
             <p>{text.reportBody}</p>
             <div className="modal-actions">
               <Button onClick={() => setShowReport(false)}>{text.installDismiss}</Button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {game.phase === 'finished' && winner && (
+        <div className="modal-overlay" role="presentation">
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="winner-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="winner-modal-title">{text.winnerTitle}</h2>
+            <p>
+              <strong>{winner.name}</strong> {text.winnerBody}
+            </p>
+            <ul className="winner-scores">
+              {game.players.map((player) => (
+                <li key={player.id}>
+                  {player.name}:{' '}
+                  {player.hand.reduce((total, card) => total + getCardValue(card), 0)}
+                </li>
+              ))}
+            </ul>
+            <div className="modal-actions">
+              <Button onClick={onBack}>{text.exitConfirmAccept}</Button>
             </div>
           </section>
         </div>
@@ -556,6 +928,7 @@ export default function App() {
           >
             <h2 id="whats-new-modal-title">{translations[locale].whatsNewTitle}</h2>
             <ul className="whats-new-list">
+              <li>{translations[locale].whatsNewGameplay}</li>
               <li>{translations[locale].whatsNewBoard}</li>
               <li>{translations[locale].whatsNewSettings}</li>
               <li>{translations[locale].whatsNewMore}</li>
