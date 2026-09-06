@@ -7,6 +7,7 @@ import {
   rankMatches,
 } from '../rules';
 import type {
+  BotDifficulty,
   Card,
   DrawSource,
   EngineOptions,
@@ -659,10 +660,19 @@ export const attemptSnap = (state: GameState, playerId: PlayerId, cardId: string
   };
 };
 
+/** Approximate probability (0-1) that a bot will actually punish a rival with the King power. */
+const KING_PUNISH_PROBABILITY: Record<BotDifficulty, number> = {
+  beginner: 1 / 50,
+  amateur: 25 / 50,
+  professional: 40 / 50,
+  legend: 1,
+};
+
 /** Simple beginner-level bot: draws, discards or swaps, and uses powers naively. */
 export const getBotAction = (
   state: GameState,
   botId: PlayerId,
+  difficulty: BotDifficulty = 'amateur',
 ):
   | { kind: 'draw'; source: DrawSource }
   | { kind: 'discard-drawn' }
@@ -696,7 +706,10 @@ export const getBotAction = (
     if (state.pendingPower === 'K') {
       const others = state.players.filter((player) => player.id !== botId);
       const target = others[0];
-      return target ? { kind: 'punish', targetPlayerId: target.id } : { kind: 'skip-power' };
+      if (target && Math.random() < KING_PUNISH_PROBABILITY[difficulty]) {
+        return { kind: 'punish', targetPlayerId: target.id };
+      }
+      return { kind: 'skip-power' };
     }
   }
 

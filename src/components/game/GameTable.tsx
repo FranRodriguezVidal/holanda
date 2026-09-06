@@ -100,10 +100,17 @@ export function GameTable({
 
   const drawnCardNode = state.drawnCard ? (
     <div className="drawn-card-area">
-      <Card card={state.drawnCard} faceUp onClick={onDiscardDrawn} disabled={!onDiscardDrawn} />
-      <p className="drawn-card-hint">
-        {onDiscardDrawn ? labels.drawnCardHintDiscardOrSwap : labels.drawnCardHintSwap}
-      </p>
+      <Card
+        card={state.drawnCard}
+        faceUp={state.currentPlayerId === localPlayerId}
+        onClick={onDiscardDrawn}
+        disabled={!onDiscardDrawn}
+      />
+      {state.currentPlayerId === localPlayerId && (
+        <p className="drawn-card-hint">
+          {onDiscardDrawn ? labels.drawnCardHintDiscardOrSwap : labels.drawnCardHintSwap}
+        </p>
+      )}
     </div>
   ) : null;
 

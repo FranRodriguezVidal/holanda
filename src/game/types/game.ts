@@ -27,6 +27,8 @@ export type GamePhase =
 
 export type DrawSource = 'deck' | 'discard';
 
+export type BotDifficulty = 'beginner' | 'amateur' | 'professional' | 'legend';
+
 export interface GameState {
   id: string;
   phase: GamePhase;

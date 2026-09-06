@@ -4,7 +4,7 @@ import { GameTable } from './components/game/GameTable';
 import { Button } from './components/ui/Button';
 import { InstallInstructions } from './components/ui/InstallInstructions';
 import { InstallPromptModal } from './components/ui/InstallPromptModal';
-import { getBotAction, getCardValue, type Card as GameCardType } from './game';
+import { getBotAction, getCardValue, type BotDifficulty, type Card as GameCardType } from './game';
 import { getDefaultLocale, translations, type Locale } from './i18n/translations';
 import { useGameStore } from './store/useGameStore';
 import { isMobileDevice, isStandaloneDisplayMode } from './utils/device';
@@ -163,7 +163,6 @@ type MenuScreen =
   | 'offline-soon'
   | 'game';
 
-type BotDifficulty = 'beginner' | 'amateur' | 'professional' | 'legend';
 type ParticipantCount = 2 | 3 | 4;
 
 function ModeSelectScreen({
@@ -463,7 +462,7 @@ function GameScreen({
 
     const botId = game.currentPlayerId;
     const timer = window.setTimeout(() => {
-      const action = getBotAction(game, botId);
+      const action = getBotAction(game, botId, difficulty ?? 'amateur');
 
       if (action.kind === 'draw') {
         draw(botId, action.source);
@@ -506,7 +505,7 @@ function GameScreen({
     }, 1100);
 
     return () => window.clearTimeout(timer);
-  }, [game, isBotTurn, draw, discardDrawn, swapDrawn, snap, activatePower, skipPower, jackSwap, kingPunish]);
+  }, [game, isBotTurn, draw, discardDrawn, swapDrawn, snap, activatePower, skipPower, jackSwap, kingPunish, difficulty]);
 
   const handleStartClose = () => {
     setIntroDismissed(true);
@@ -1028,6 +1027,7 @@ export default function App() {
           >
             <h2 id="whats-new-modal-title">{translations[locale].whatsNewTitle}</h2>
             <ul className="whats-new-list">
+              <li>{translations[locale].whatsNewFixes}</li>
               <li>{translations[locale].whatsNewGameplay}</li>
               <li>{translations[locale].whatsNewBoard}</li>
               <li>{translations[locale].whatsNewSettings}</li>
