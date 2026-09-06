@@ -171,14 +171,10 @@ export const peekCard = (state: GameState, playerId: PlayerId, cardId: string): 
     return state;
   }
 
-  // Toggle off if already face up.
+  // A peeked card stays face up permanently during the initial peek — it
+  // cannot be turned back down, and re-clicking it has no effect.
   if (target.faceUp) {
-    return withPlayer(state, playerId, (current) => ({
-      ...current,
-      hand: current.hand.map((card) =>
-        card.id === cardId ? { ...card, faceUp: false } : card,
-      ),
-    }));
+    return state;
   }
 
   const peekedCount = player.hand.filter((card) => card.faceUp).length;
@@ -242,9 +238,16 @@ export const drawCard = (state: GameState, playerId: PlayerId, source: DrawSourc
   };
 };
 
-/** Discard the drawn card without swapping it into the hand. */
+/** Discard the drawn card without swapping it into the hand.
+ * Only valid when the drawn card came from the deck (i.e. was unseen /
+ * face down before drawing). A card drawn from the discard pile is
+ * already known/visible, so it cannot be discarded again without using it.
+ */
 export const discardDrawnCard = (state: GameState, playerId: PlayerId): GameState => {
   if (state.phase !== 'playing' || state.currentPlayerId !== playerId || !state.drawnCard) {
+    return state;
+  }
+  if (state.drawSource !== 'deck') {
     return state;
   }
 
@@ -259,6 +262,7 @@ export const discardDrawnCard = (state: GameState, playerId: PlayerId): GameStat
 
   return maybeTriggerSpecial(nextState, playerId, discarded);
 };
+
 
 /** Swap the drawn card with one of the player's own cards, then discard the old one. */
 export const swapDrawnCard = (

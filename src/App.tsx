@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
+import { Card } from './components/cards/Card';
 import { GameTable } from './components/game/GameTable';
 import { Button } from './components/ui/Button';
 import { InstallInstructions } from './components/ui/InstallInstructions';
@@ -705,7 +706,9 @@ function GameScreen({
         onDrawDiscard={canDraw ? () => draw(localPlayer!.id, 'discard') : undefined}
         onCardClick={handleCardClick}
         onDiscardDrawn={
-          game.drawnCard && isLocalTurn ? () => discardDrawn(localPlayer!.id) : undefined
+          game.drawnCard && isLocalTurn && game.drawSource === 'deck'
+            ? () => discardDrawn(localPlayer!.id)
+            : undefined
         }
       />
 
@@ -753,11 +756,9 @@ function GameScreen({
                   {text.powerModalOk}
                 </Button>
               )}
-              {game.pendingPower !== 'K' && (
-                <Button variant="secondary" onClick={() => skipPower(localPlayer.id)}>
-                  {text.powerSkip}
-                </Button>
-              )}
+              <Button variant="secondary" onClick={() => skipPower(localPlayer.id)}>
+                {text.powerSkip}
+              </Button>
             </div>
           </section>
         </div>
@@ -773,19 +774,26 @@ function GameScreen({
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="draw-modal-title">{text.drawModalTitle}</h2>
-            <p>{text.drawModalBody}</p>
+            {game.drawnCard && (
+              <div className="draw-modal__card">
+                <Card card={game.drawnCard} faceUp />
+              </div>
+            )}
+            <p>{game.drawSource === 'deck' ? text.drawModalBody : text.drawModalBodyDiscard}</p>
             <div className="modal-actions">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  discardDrawn(localPlayer.id);
-                  setDrawModalDismissedKey(`${game.turnNumber}-draw`);
-                }}
-              >
-                {text.drawModalDiscard}
-              </Button>
+              {game.drawSource === 'deck' && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    discardDrawn(localPlayer.id);
+                    setDrawModalDismissedKey(`${game.turnNumber}-draw`);
+                  }}
+                >
+                  {text.drawModalDiscard}
+                </Button>
+              )}
               <Button onClick={() => setDrawModalDismissedKey(`${game.turnNumber}-draw`)}>
-                {text.drawModalOk}
+                {text.drawModalSwap}
               </Button>
             </div>
           </section>

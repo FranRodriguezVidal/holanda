@@ -1348,6 +1348,18 @@ textarea:focus-visible {
   justify-content: center;
 }
 
+.draw-modal__card {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.draw-modal__card .card {
+  width: 84px;
+  height: 118px;
+  font-size: 1.4rem;
+}
+
 .winner-scores {
   list-style: none;
   margin: 0 0 1rem;

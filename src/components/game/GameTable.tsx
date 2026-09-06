@@ -20,16 +20,21 @@ const renderHand = (
   onCardClick: GameTableProps['onCardClick'],
   extraClass = '',
   allowOpponentClicks = false,
+  revealAll = false,
 ) => (
   <div className={`game-hand ${extraClass}`} aria-label={`${playerId} hand`}>
     {cards.map((card) => {
       const isLocal = playerId === localPlayerId;
       const clickable = Boolean(onCardClick) && (isLocal || allowOpponentClicks);
+      // A card's face-up state only matters to its owner (or during the
+      // final reveal). Rivals must never see what another player has
+      // peeked at or been shown by a J/Q/K power.
+      const faceUp = revealAll || isLocal ? card.faceUp : false;
       return (
         <Card
           key={card.id}
           card={card}
-          faceUp={card.faceUp}
+          faceUp={faceUp}
           disabled={!clickable}
           onClick={clickable ? () => onCardClick!(playerId, card) : undefined}
         />
@@ -52,6 +57,7 @@ export function GameTable({
   const isThreePlayerTable = state.players.length === 3;
   const isFourPlayerTable = state.players.length === 4;
   const topDiscardCard = state.discardPile[0];
+  const revealAllHands = state.phase === 'finished';
   const allowOpponentClicks =
     state.phase === 'special-power' &&
     state.pendingPowerPlayerId === localPlayerId &&
@@ -95,7 +101,9 @@ export function GameTable({
   const drawnCardNode = state.drawnCard ? (
     <div className="drawn-card-area">
       <Card card={state.drawnCard} faceUp onClick={onDiscardDrawn} disabled={!onDiscardDrawn} />
-      <p className="drawn-card-hint">{labels.discardPile}</p>
+      <p className="drawn-card-hint">
+        {onDiscardDrawn ? labels.drawnCardHintDiscardOrSwap : labels.drawnCardHintSwap}
+      </p>
     </div>
   ) : null;
 
@@ -111,17 +119,17 @@ export function GameTable({
         <div className="four-player-table">
           <article className="four-player-seat four-player-seat--top">
             <h3>{topPlayer.name}</h3>
-            {renderHand(topPlayer.hand, topPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks)}
+            {renderHand(topPlayer.hand, topPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
 
           <article className="four-player-seat four-player-seat--left">
             <h3>{leftPlayer.name}</h3>
-            {renderHand(leftPlayer.hand, leftPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks)}
+            {renderHand(leftPlayer.hand, leftPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
 
           <article className="four-player-seat four-player-seat--right">
             <h3>{rightPlayer.name}</h3>
-            {renderHand(rightPlayer.hand, rightPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks)}
+            {renderHand(rightPlayer.hand, rightPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
 
           <div className="four-player-piles" aria-label={labels.gameTableAria}>
@@ -132,7 +140,7 @@ export function GameTable({
 
           <article className="four-player-seat four-player-seat--local">
             <h3>{localPlayer.name}</h3>
-            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks)}
+            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
         </div>
       </section>
@@ -151,12 +159,12 @@ export function GameTable({
         <div className="three-player-table">
           <article className="three-player-seat three-player-seat--left">
             <h3>{leftPlayer.name}</h3>
-            {renderHand(leftPlayer.hand, leftPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks)}
+            {renderHand(leftPlayer.hand, leftPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
 
           <article className="three-player-seat three-player-seat--right">
             <h3>{rightPlayer.name}</h3>
-            {renderHand(rightPlayer.hand, rightPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks)}
+            {renderHand(rightPlayer.hand, rightPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
 
           <div className="three-player-piles" aria-label={labels.gameTableAria}>
@@ -167,7 +175,7 @@ export function GameTable({
 
           <article className="three-player-seat three-player-seat--local">
             <h3>{localPlayer.name}</h3>
-            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks)}
+            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
         </div>
       </section>
@@ -186,7 +194,7 @@ export function GameTable({
         <div className="two-player-table">
           <article className="two-player-seat two-player-seat--opponent">
             <h3>{opponent.name}</h3>
-            {renderHand(opponent.hand, opponent.id, localPlayerId, onCardClick, 'two-player-hand', allowOpponentClicks)}
+            {renderHand(opponent.hand, opponent.id, localPlayerId, onCardClick, 'two-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
 
           <div className="two-player-piles" aria-label={labels.gameTableAria}>
@@ -197,7 +205,7 @@ export function GameTable({
 
           <article className="two-player-seat two-player-seat--local">
             <h3>{localPlayer.name}</h3>
-            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'two-player-hand', allowOpponentClicks)}
+            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'two-player-hand', allowOpponentClicks, revealAllHands)}
           </article>
         </div>
       </section>
@@ -237,7 +245,7 @@ export function GameTable({
               <h3>{player.name}</h3>
               <span>{player.id === state.currentPlayerId ? labels.current : labels.waiting}</span>
             </div>
-            {renderHand(player.hand, player.id, localPlayerId, onCardClick)}
+            {renderHand(player.hand, player.id, localPlayerId, onCardClick, '', false, revealAllHands)}
           </article>
         ))}
       </div>
