@@ -357,6 +357,8 @@ function GameScreen({
   const [introDismissed, setIntroDismissed] = useState(false);
   const [peekCountdown, setPeekCountdown] = useState<number | null>(null);
   const [peekRevealing, setPeekRevealing] = useState(false);
+  const [powerModalDismissedKey, setPowerModalDismissedKey] = useState<string | null>(null);
+  const [drawModalDismissedKey, setDrawModalDismissedKey] = useState<string | null>(null);
 
   const matchLabel = difficulty ? text[difficultyLabelKey[difficulty]] : text.match;
   const localPlayer = game.players[0]!;
@@ -528,8 +530,10 @@ function GameScreen({
           jackSwap(localPlayer.id, card.id);
         }
       } else if (game.pendingPower === 'Q') {
-        activatePower(localPlayer.id, card.id);
-        window.setTimeout(() => skipPower(localPlayer.id), 900);
+        if (playerId === localPlayer.id) {
+          activatePower(localPlayer.id, card.id);
+          window.setTimeout(() => skipPower(localPlayer.id), 900);
+        }
       }
       return;
     }
@@ -560,6 +564,25 @@ function GameScreen({
   const canCallHolanda =
     isLocalTurn && game.phase === 'playing' && !game.drawnCard && !game.holandaCallerId;
   const winner = game.winnerId ? game.players.find((player) => player.id === game.winnerId) : null;
+
+  const localOwnSelected = localPlayer.hand.some((card) => card.isSelected);
+  const isLocalPowerTurn =
+    game.phase === 'special-power' && game.pendingPowerPlayerId === localPlayer.id;
+  const jackStep: 'select-own' | 'select-rival' | null =
+    isLocalPowerTurn && game.pendingPower === 'J'
+      ? localOwnSelected
+        ? 'select-rival'
+        : 'select-own'
+      : null;
+  const powerModalKey = isLocalPowerTurn
+    ? `${game.turnNumber}-${game.pendingPower}-${jackStep ?? 'single'}`
+    : null;
+  const showPowerModal = powerModalKey !== null && powerModalDismissedKey !== powerModalKey;
+
+  const showDrawModal =
+    Boolean(game.drawnCard) && isLocalTurn && game.phase === 'playing' &&
+    drawModalDismissedKey !== `${game.turnNumber}-draw`;
+
 
   return (
     <main className="screen screen--game" aria-label="HOLANDA game table">
@@ -659,23 +682,9 @@ function GameScreen({
         </p>
       )}
 
-      {game.phase === 'special-power' && game.pendingPowerPlayerId === localPlayer.id && (
+      {game.phase === 'special-power' && game.pendingPowerPlayerId === localPlayer.id && !showPowerModal && (
         <p className="power-hint" role="status">
-          {game.pendingPower === 'J' && text.powerPromptJ}
-          {game.pendingPower === 'Q' && text.powerPromptQ}
           {game.pendingPower === 'K' && text.powerPromptK}
-          {game.pendingPower === 'K' &&
-            game.players
-              .filter((player) => player.id !== localPlayer.id)
-              .map((player) => (
-                <Button
-                  key={player.id}
-                  variant="secondary"
-                  onClick={() => kingPunish(localPlayer.id, player.id)}
-                >
-                  {player.name}
-                </Button>
-              ))}
           <Button variant="secondary" onClick={() => skipPower(localPlayer.id)}>
             {text.powerSkip}
           </Button>
@@ -699,6 +708,89 @@ function GameScreen({
           game.drawnCard && isLocalTurn ? () => discardDrawn(localPlayer!.id) : undefined
         }
       />
+
+      {showPowerModal && (
+        <div className="modal-overlay" role="presentation">
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="power-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="power-modal-title">
+              {game.pendingPower === 'J' && text.powerModalTitleJ}
+              {game.pendingPower === 'Q' && text.powerModalTitleQ}
+              {game.pendingPower === 'K' && text.powerModalTitleK}
+            </h2>
+            <p>
+              {game.pendingPower === 'J' &&
+                (jackStep === 'select-rival' ? text.powerModalBodyJswap : text.powerModalBodyJselect)}
+              {game.pendingPower === 'Q' && text.powerModalBodyQ}
+              {game.pendingPower === 'K' && text.powerModalBodyK}
+            </p>
+            {game.pendingPower === 'K' && (
+              <div className="modal-actions">
+                {game.players
+                  .filter((player) => player.id !== localPlayer.id)
+                  .map((player) => (
+                    <Button
+                      key={player.id}
+                      variant="secondary"
+                      onClick={() => {
+                        kingPunish(localPlayer.id, player.id);
+                        setPowerModalDismissedKey(powerModalKey);
+                      }}
+                    >
+                      {player.name}
+                    </Button>
+                  ))}
+              </div>
+            )}
+            <div className="modal-actions">
+              {game.pendingPower !== 'K' && (
+                <Button onClick={() => setPowerModalDismissedKey(powerModalKey)}>
+                  {text.powerModalOk}
+                </Button>
+              )}
+              {game.pendingPower !== 'K' && (
+                <Button variant="secondary" onClick={() => skipPower(localPlayer.id)}>
+                  {text.powerSkip}
+                </Button>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showDrawModal && (
+        <div className="modal-overlay" role="presentation">
+          <section
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="draw-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="draw-modal-title">{text.drawModalTitle}</h2>
+            <p>{text.drawModalBody}</p>
+            <div className="modal-actions">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  discardDrawn(localPlayer.id);
+                  setDrawModalDismissedKey(`${game.turnNumber}-draw`);
+                }}
+              >
+                {text.drawModalDiscard}
+              </Button>
+              <Button onClick={() => setDrawModalDismissedKey(`${game.turnNumber}-draw`)}>
+                {text.drawModalOk}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {showIntroModal && (
         <div className="modal-overlay" role="presentation">

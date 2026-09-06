@@ -351,15 +351,13 @@ export const activateSpecialPower = (
   }
 
   if (power === 'Q') {
-    // Look at any card you want (yours or a rival's).
-    const targetPlayer = state.players.find((entry) =>
-      entry.hand.some((card) => card.id === targetCardId),
-    );
-    if (!targetPlayer) {
+    // Look at one of your own cards only (rivals' cards cannot be seen).
+    const ownCard = player.hand.find((card) => card.id === targetCardId);
+    if (!ownCard) {
       return state;
     }
     return {
-      ...withPlayer(state, targetPlayer.id, (current) => ({
+      ...withPlayer(state, playerId, (current) => ({
         ...current,
         hand: current.hand.map((card) =>
           card.id === targetCardId ? { ...card, faceUp: true } : card,
@@ -676,9 +674,8 @@ export const getBotAction = (
 
   if (state.phase === 'special-power' && state.pendingPowerPlayerId === botId) {
     if (state.pendingPower === 'Q') {
-      const others = state.players.filter((player) => player.id !== botId);
-      const target = others.flatMap((player) => player.hand)[0] ?? bot.hand[0];
-      return target ? { kind: 'use-power', targetCardId: target.id } : { kind: 'skip-power' };
+      const own = bot.hand[0];
+      return own ? { kind: 'use-power', targetCardId: own.id } : { kind: 'skip-power' };
     }
     if (state.pendingPower === 'J') {
       const selectedOwn = bot.hand.find((card) => card.isSelected);
@@ -743,7 +740,7 @@ export const getSpecialPowerTargets = (state: GameState, playerId: PlayerId): Ca
   }
 
   if (state.pendingPower === 'Q') {
-    return state.players.flatMap((entry) => entry.hand);
+    return player.hand;
   }
   if (state.pendingPower === 'J') {
     const selected = player.hand.find((card) => card.isSelected);

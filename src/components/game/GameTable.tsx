@@ -55,13 +55,12 @@ export function GameTable({
   const allowOpponentClicks =
     state.phase === 'special-power' &&
     state.pendingPowerPlayerId === localPlayerId &&
-    (state.pendingPower === 'Q' ||
-      (state.pendingPower === 'J' &&
-        Boolean(
-          state.players
-            .find((player) => player.id === localPlayerId)
-            ?.hand.some((card) => card.isSelected),
-        )));
+    state.pendingPower === 'J' &&
+    Boolean(
+      state.players
+        .find((player) => player.id === localPlayerId)
+        ?.hand.some((card) => card.isSelected),
+    );
 
   const deckPile = (
     <div className="table__pile table__pile--deck" aria-label={labels.deckAria}>
