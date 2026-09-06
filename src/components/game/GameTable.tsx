@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Card as GameCard, GameState } from '../../game';
 import type { Locale } from '../../i18n/translations';
 import { translations } from '../../i18n/translations';
@@ -22,7 +23,11 @@ const renderHand = (
   allowOpponentClicks = false,
   revealAll = false,
 ) => (
-  <div className={`game-hand ${extraClass}`} aria-label={`${playerId} hand`}>
+  <div
+    className={`game-hand ${extraClass}`}
+    aria-label={`${playerId} hand`}
+    style={{ '--card-count': cards.length } as CSSProperties}
+  >
     {cards.map((card) => {
       const isLocal = playerId === localPlayerId;
       const clickable = Boolean(onCardClick) && (isLocal || allowOpponentClicks);

@@ -17,6 +17,30 @@ import type {
 } from '../types';
 import { createDeck, shuffleDeck } from './deck';
 
+/**
+ * Ensures the deck has at least one card to draw. If the deck is empty, the
+ * discard pile (except its top card, which stays visible in play) is
+ * reshuffled back into the deck. This prevents the game from getting stuck
+ * once the deck runs out (e.g. after several King punishments draw extra
+ * cards from it).
+ */
+const ensureDeckHasCards = (state: GameState): GameState => {
+  if (state.deck.length > 0) {
+    return state;
+  }
+
+  const [topDiscard, ...restDiscard] = state.discardPile;
+  if (restDiscard.length === 0) {
+    return state;
+  }
+
+  return {
+    ...state,
+    deck: shuffleDeck(restDiscard.map((card) => ({ ...card, faceUp: false, isSelected: false }))),
+    discardPile: topDiscard ? [topDiscard] : [],
+  };
+};
+
 const createPlayer = (id: string, name: string, isBot: boolean): Player => ({
   id,
   name,
@@ -213,12 +237,13 @@ export const drawCard = (state: GameState, playerId: PlayerId, source: DrawSourc
   }
 
   if (source === 'deck') {
-    const [drawn, ...rest] = state.deck;
+    const replenished = ensureDeckHasCards(state);
+    const [drawn, ...rest] = replenished.deck;
     if (!drawn) {
       return state;
     }
     return {
-      ...state,
+      ...replenished,
       deck: rest,
       drawnCard: { ...drawn, faceUp: true, isSelected: false },
       drawSource: 'deck',
@@ -504,14 +529,15 @@ export const applyKingPunishment = (
     return state;
   }
 
-  const remainingDeck = [...state.deck];
+  const replenished = ensureDeckHasCards(state);
+  const remainingDeck = [...replenished.deck];
   const extraCard = remainingDeck.shift();
   if (!extraCard) {
-    return finishTurn({ ...state, phase: 'playing', pendingPower: undefined, pendingPowerPlayerId: undefined });
+    return finishTurn({ ...replenished, phase: 'playing', pendingPower: undefined, pendingPowerPlayerId: undefined });
   }
 
   const nextState: GameState = {
-    ...state,
+    ...replenished,
     deck: remainingDeck,
     players: state.players.map((entry) =>
       entry.id === targetPlayerId
@@ -636,12 +662,13 @@ export const attemptSnap = (state: GameState, playerId: PlayerId, cardId: string
   const topDiscard = state.discardPile[0];
   if (!topDiscard || !rankMatches(card, topDiscard)) {
     // Wrong snap: draw a penalty card from the deck.
-    const [penalty, ...rest] = state.deck;
+    const replenished = ensureDeckHasCards(state);
+    const [penalty, ...rest] = replenished.deck;
     if (!penalty) {
       return state;
     }
     return {
-      ...withPlayer(state, playerId, (current) => ({
+      ...withPlayer(replenished, playerId, (current) => ({
         ...current,
         hand: [...current.hand, { ...penalty, faceUp: false, isSelected: false }],
       })),
@@ -700,12 +727,13 @@ export const getBotAction = (
           : { kind: 'skip-power' };
       }
       const others = state.players.filter((player) => player.id !== botId);
-      const target = others.flatMap((player) => player.hand)[0];
+      const otherCards = others.flatMap((player) => player.hand);
+      const target = otherCards[Math.floor(Math.random() * otherCards.length)];
       return target ? { kind: 'use-power', targetCardId: target.id } : { kind: 'skip-power' };
     }
     if (state.pendingPower === 'K') {
       const others = state.players.filter((player) => player.id !== botId);
-      const target = others[0];
+      const target = others[Math.floor(Math.random() * others.length)];
       if (target && Math.random() < KING_PUNISH_PROBABILITY[difficulty]) {
         return { kind: 'punish', targetPlayerId: target.id };
       }

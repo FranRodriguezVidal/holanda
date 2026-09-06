@@ -580,7 +580,7 @@ textarea:focus-visible {
 }
 
 .two-player-hand .card {
-  width: clamp(58px, 10vw, 78px);
+  width: clamp(46px, calc(10vw - (var(--card-count, 4) - 4) * 1.6px), 78px);
   height: auto;
   aspect-ratio: 0.69;
   margin-left: clamp(4px, 0.8vw, 10px);
@@ -1173,13 +1173,13 @@ textarea:focus-visible {
   }
 
   .three-player-hand .card {
-    width: clamp(38px, 12vw, 54px);
+    width: clamp(30px, calc(12vw - (var(--card-count, 4) - 4) * 2.4px), 54px);
     margin-left: clamp(2px, 1vw, 6px);
   }
 
   .three-player-seat--left .three-player-hand .card,
   .three-player-seat--right .three-player-hand .card {
-    --card-w: clamp(38px, 12vw, 54px);
+    --card-w: clamp(30px, calc(12vw - (var(--card-count, 4) - 4) * 2.4px), 54px);
     width: var(--card-w);
     margin-top: calc(clamp(2px, 1vw, 6px) - (var(--card-w) / 0.69 - var(--card-w)));
   }
@@ -1201,13 +1201,13 @@ textarea:focus-visible {
   }
 
   .four-player-hand .card {
-    width: clamp(38px, 12vw, 54px);
+    width: clamp(30px, calc(12vw - (var(--card-count, 4) - 4) * 2.4px), 54px);
     margin-left: clamp(2px, 1vw, 6px);
   }
 
   .four-player-seat--left .four-player-hand .card,
   .four-player-seat--right .four-player-hand .card {
-    --card-w: clamp(38px, 12vw, 54px);
+    --card-w: clamp(30px, calc(12vw - (var(--card-count, 4) - 4) * 2.4px), 54px);
     width: var(--card-w);
     margin-top: calc(clamp(2px, 1vw, 6px) - (var(--card-w) / 0.69 - var(--card-w)));
   }
@@ -1229,18 +1229,18 @@ textarea:focus-visible {
 
   .three-player-hand .card,
   .four-player-hand .card {
-    width: min(clamp(38px, 8vw, 54px), 9vh);
+    width: min(clamp(30px, calc(8vw - (var(--card-count, 4) - 4) * 2px), 54px), 9vh);
   }
 
   .three-player-seat--left .three-player-hand .card,
   .three-player-seat--right .three-player-hand .card,
   .four-player-seat--left .four-player-hand .card,
   .four-player-seat--right .four-player-hand .card {
-    --card-w: min(clamp(38px, 8vw, 54px), 9vh);
+    --card-w: min(clamp(30px, calc(8vw - (var(--card-count, 4) - 4) * 2px), 54px), 9vh);
   }
 
   .three-player-seat--local .three-player-hand .card {
-    width: min(clamp(44px, 9vw, 58px), 10vh);
+    width: min(clamp(36px, calc(9vw - (var(--card-count, 4) - 4) * 2px), 58px), 10vh);
   }
 
   .four-player-seat--top {
