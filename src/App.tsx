@@ -472,6 +472,7 @@ function SubscribeModal({ locale, onClose }: { locale: Locale; onClose: () => vo
             <>
               <h2 id="subscribe-modal-title">{text.subscribeSuccessTitle}</h2>
               <p>{alreadySubscribed ? text.subscribeAlready : text.subscribeSuccessBody}</p>
+              {!alreadySubscribed && <p className="subscribe-spam-hint">{text.subscribeSpamHint}</p>}
             </>
           ) : (
             <>

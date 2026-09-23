@@ -1606,6 +1606,17 @@ textarea:focus-visible {
   width: min(100%, 460px);
 }
 
+.subscribe-spam-hint {
+  margin-top: -0.4rem;
+  padding: 0.6rem 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 10px;
+}
+
 .subscribe-mode-toggle {
   justify-self: center;
   margin-top: 0.2rem;

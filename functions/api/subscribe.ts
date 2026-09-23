@@ -60,6 +60,9 @@ function buildWelcomeEmail(locale: 'es' | 'en', unsubscribeUrl: string) {
   const footer = isEs
     ? 'Recibiste este correo porque te suscribiste a las novedades de HOLANDA.'
     : 'You received this email because you subscribed to HOLANDA updates.';
+  const spamHint = isEs
+    ? 'Consejo: si este correo cayó en tu carpeta de Spam o Promociones, márcalo como "No es spam" para no perderte los próximos avisos.'
+    : 'Tip: if this landed in your Spam or Promotions folder, mark it as "Not spam" so future updates reach your inbox.';
 
   const html = `
   <!DOCTYPE html>
@@ -78,6 +81,7 @@ function buildWelcomeEmail(locale: 'es' | 'en', unsubscribeUrl: string) {
               <tr>
                 <td style="padding:28px;">
                   <p style="margin:0 0 20px;color:#e2e8f0;font-size:15px;line-height:1.6;">${escapeHtml(intro)}</p>
+                  <p style="margin:0 0 20px;padding:12px 14px;color:#cbd5e1;font-size:13px;line-height:1.5;background-color:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:10px;">${escapeHtml(spamHint)}</p>
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid rgba(148,163,184,0.2);padding-top:16px;margin-top:8px;">
                     <tr>
                       <td style="color:#94a3b8;font-size:12px;line-height:1.6;">
@@ -100,7 +104,7 @@ function buildWelcomeEmail(locale: 'es' | 'en', unsubscribeUrl: string) {
     </body>
   </html>`;
 
-  const text = `${title}\n\n${intro}\n\n${unsubscribeLabel}: ${unsubscribeUrl}\n\n${footer}`;
+  const text = `${title}\n\n${intro}\n\n${spamHint}\n\n${unsubscribeLabel}: ${unsubscribeUrl}\n\n${footer}`;
 
   return { html, text, subject: title };
 }
