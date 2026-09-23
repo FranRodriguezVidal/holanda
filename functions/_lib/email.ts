@@ -12,6 +12,7 @@ export interface SendEmailOptions {
   html: string;
   text: string;
   attachments?: SendEmailAttachment[];
+  headers?: Record<string, string>;
 }
 
 /**
@@ -29,6 +30,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<string | nul
       personalizations: [{ to: options.to.map((email) => ({ email })) }],
       from: options.from,
       subject: options.subject,
+      headers: options.headers,
       content: [
         { type: 'text/plain', value: options.text },
         { type: 'text/html', value: options.html },

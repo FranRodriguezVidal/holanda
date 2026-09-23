@@ -56,6 +56,32 @@ function htmlPage(locale: 'es' | 'en', title: string, body: string, status: numb
   });
 }
 
+async function unsubscribeRecord(env: Env, email: string, token: string): Promise<'invalid' | 'not-found' | 'ok'> {
+  if (!email || !token) {
+    return 'invalid';
+  }
+
+  const key = `subscriber:${email}`;
+  const raw = await env.SUBSCRIBERS.get(key);
+  if (!raw) {
+    return 'not-found';
+  }
+
+  let record: SubscriberRecord;
+  try {
+    record = JSON.parse(raw) as SubscriberRecord;
+  } catch {
+    return 'invalid';
+  }
+
+  if (record.unsubscribeToken !== token) {
+    return 'invalid';
+  }
+
+  await env.SUBSCRIBERS.delete(key);
+  return 'ok';
+}
+
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -99,4 +125,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       : "You've been unsubscribed successfully. You will no longer receive HOLANDA update emails.";
 
   return htmlPage(locale, title, body, 200);
+};
+
+// Handles Gmail/Outlook's "one-click unsubscribe" (RFC 8058): mail clients POST here
+// directly (with no page shown to the user) when List-Unsubscribe-Post is present.
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const email = (url.searchParams.get('email') ?? '').trim().toLowerCase();
+  const token = url.searchParams.get('token') ?? '';
+
+  if (!env.SUBSCRIBERS) {
+    return new Response(null, { status: 500 });
+  }
+
+  const result = await unsubscribeRecord(env, email, token);
+  if (result === 'invalid') {
+    return new Response(null, { status: 403 });
+  }
+
+  return new Response(null, { status: 200 });
 };

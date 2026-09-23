@@ -120,6 +120,12 @@ async function sendWelcomeEmail(env: Env, record: SubscriberRecord, origin: stri
     subject,
     html,
     text,
+    headers: {
+      // Lets Gmail/Outlook show a native "Unsubscribe" action and treat this as a
+      // trusted mailing-list message instead of flagging it as suspicious/spam.
+      'List-Unsubscribe': `<${unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
   });
 }
 
