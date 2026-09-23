@@ -1348,6 +1348,168 @@ textarea:focus-visible {
   justify-content: center;
 }
 
+.report-panel {
+  width: min(100%, 520px);
+}
+
+.report-id {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: -0.4rem 0 0.4rem;
+  padding: 0.6rem 0.7rem 0.6rem 0.9rem;
+  border-radius: 0.6rem;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--text);
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+}
+
+.report-id-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.report-id-copy:hover {
+  background: rgba(56, 189, 248, 0.28);
+  transform: translateY(-1px);
+}
+
+.report-id-copy svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.report-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.report-field {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.report-field select,
+.report-field textarea,
+.report-field input[type='file'],
+.report-field input[type='email'] {
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  color: var(--text);
+  background: rgba(15, 23, 42, 0.32);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+}
+
+.report-field select {
+  color-scheme: light;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.report-field select option {
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+.report-field textarea {
+  resize: vertical;
+  min-height: 140px;
+  line-height: 1.5;
+}
+
+.report-field small {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.report-attachments {
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--panel-border);
+}
+
+.report-attachments strong {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.88rem;
+}
+
+.report-attachments ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.report-attachments li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.report-attachment-remove {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.3rem;
+  cursor: pointer;
+}
+
+.report-attachment-remove:hover {
+  color: var(--danger);
+}
+
+.report-attachments span {
+  color: var(--text-muted);
+}
+
+.report-error {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.28);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.report-actions {
+  margin-top: 0.25rem;
+}
+
 .draw-modal__card {
   display: flex;
   justify-content: center;
@@ -1419,6 +1581,45 @@ textarea:focus-visible {
   gap: 0.45rem;
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.settings-subscribe {
+  margin: 0.4rem 0 1.1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.settings-subscribe .modal-section-title {
+  margin: 0 0 0.35rem;
+}
+
+.settings-subscribe p {
+  margin: 0 0 0.7rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.subscribe-panel {
+  width: min(100%, 460px);
+}
+
+.subscribe-mode-toggle {
+  justify-self: center;
+  margin-top: 0.2rem;
+  padding: 0.3rem 0.5rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.subscribe-mode-toggle:hover {
+  color: var(--text);
 }
 
 .update-notice {

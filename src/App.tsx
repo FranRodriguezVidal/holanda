@@ -29,6 +29,523 @@ const defaultSettings: AppSettings = {
   musicVolume: 50,
   theme: 'dark',
 };
+
+const REPORT_ENDPOINT = '/api/report';
+const MAX_ATTACHMENT_SIZE_BYTES = 8 * 1024 * 1024;
+const BLOCKED_REPORT_EXTENSIONS = new Set([
+  '.js',
+  '.jsx',
+  '.ts',
+  '.tsx',
+  '.html',
+  '.htm',
+  '.css',
+  '.svg',
+  '.php',
+  '.py',
+  '.sh',
+  '.bat',
+  '.cmd',
+  '.ps1',
+  '.exe',
+  '.msi',
+  '.dll',
+  '.apk',
+  '.jar',
+  '.scr',
+]);
+const BLOCKED_REPORT_PATTERNS = [
+  /<script\b/i,
+  /javascript\s*:/i,
+  /vbscript\s*:/i,
+  /eval\s*\(/i,
+  /document\.cookie/i,
+  /localStorage\./i,
+  /fetch\s*\(/i,
+  /new\s+XMLHttpRequest/i,
+  /onerror\s*=/i,
+  /base64\s*,/i,
+  /\b(?:curl|wget)\s+-/i,
+];
+
+type ReportCategory = 'game' | 'letters' | 'text' | 'translations' | 'other';
+
+interface ReportAttachment {
+  id: string;
+  file: File;
+}
+
+function sanitizeReportText(value: string) {
+  const withoutScripts = value.replace(/<\/?script[^>]*>/gi, '');
+  const withoutHtml = withoutScripts.replace(/<[^>]+>/g, '');
+  return withoutHtml
+    .replace(/(?:\r\n|\r|\n)+/g, '\n')
+    .replace(/\s{3,}/g, ' ')
+    .trim();
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isBlockedReportFile(file: File): string | null {
+  const fileName = file.name.toLowerCase();
+  const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '';
+
+  if (BLOCKED_REPORT_EXTENSIONS.has(extension)) {
+    return 'blocked-type';
+  }
+
+  if (/^(application|text)\/(?:x-)?(javascript|ecmascript|html|xml|x-sh|x-bat|x-msdos-program|x-msdownload|x-executable|php|python)/i.test(file.type)) {
+    return 'blocked-type';
+  }
+
+  if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+    return 'too-large';
+  }
+
+  if (!file.type || file.type.startsWith('text/') || file.type === 'application/json' || file.type === 'application/pdf' || file.type.startsWith('image/')) {
+    return null;
+  }
+
+  if (file.type.startsWith('application/')) {
+    const allowedAppTypes = ['application/pdf', 'application/json', 'application/octet-stream'];
+    if (!allowedAppTypes.includes(file.type)) {
+      return 'blocked-type';
+    }
+  }
+
+  return null;
+}
+
+async function isSuspiciousAttachment(file: File): Promise<boolean> {
+  const isTextLike = file.type.startsWith('text/') || file.type === 'application/json' || file.type === '';
+  if (!isTextLike) {
+    return false;
+  }
+
+  try {
+    const content = await file.text();
+    return BLOCKED_REPORT_PATTERNS.some((pattern) => pattern.test(content));
+  } catch {
+    return false;
+  }
+}
+
+function ReportModal({
+  locale,
+  onClose,
+}: {
+  locale: Locale;
+  onClose: () => void;
+}) {
+  const text = translations[locale];
+  const [selectedCategory, setSelectedCategory] = useState<ReportCategory>('game');
+  const [description, setDescription] = useState('');
+  const [attachments, setAttachments] = useState<ReportAttachment[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = Array.from(event.target.files ?? []);
+    if (fileList.length === 0) {
+      return;
+    }
+
+    const nextAttachments: ReportAttachment[] = [];
+    let blockedReason: string | null = null;
+
+    for (const file of fileList) {
+      const blocked = isBlockedReportFile(file);
+      if (blocked === 'too-large') {
+        blockedReason = locale === 'es'
+          ? `Algún archivo supera el tamaño máximo permitido (${formatFileSize(MAX_ATTACHMENT_SIZE_BYTES)}).`
+          : `Some file exceeds the maximum allowed size (${formatFileSize(MAX_ATTACHMENT_SIZE_BYTES)}).`;
+        continue;
+      }
+      if (blocked) {
+        blockedReason = text.reportBlocked;
+        continue;
+      }
+
+      const suspicious = await isSuspiciousAttachment(file);
+      if (suspicious) {
+        blockedReason = text.reportBlocked;
+        continue;
+      }
+
+      nextAttachments.push({ id: `${file.name}-${file.size}-${file.lastModified}`, file });
+    }
+
+    setAttachments((current) => [...current, ...nextAttachments]);
+    setErrorMessage(blockedReason ?? null);
+    event.target.value = '';
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((current) => current.filter((attachment) => attachment.id !== id));
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmedDescription = sanitizeReportText(description);
+    if (!trimmedDescription) {
+      setErrorMessage(
+        locale === 'es'
+          ? 'Escribe una breve descripción del problema antes de enviar el reporte.'
+          : 'Write a brief description of the problem before sending the report.',
+      );
+      return;
+    }
+
+    setStatus('sending');
+    setErrorMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('category', selectedCategory);
+      formData.append('description', trimmedDescription);
+      formData.append('locale', locale);
+      attachments.forEach((attachment) => {
+        formData.append('attachment', attachment.file, attachment.file.name);
+      });
+
+      const response = await fetch(REPORT_ENDPOINT, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: formData,
+      });
+
+      const contentType = response.headers.get('content-type') ?? '';
+      const payload = contentType.includes('application/json') ? await response.json().catch(() => null) : null;
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error ?? 'Report submission failed');
+      }
+
+      setReportId(typeof payload.reportId === 'string' ? payload.reportId : null);
+      setStatus('sent');
+    } catch {
+      setStatus('idle');
+      setErrorMessage(
+        locale === 'es'
+          ? 'No se pudo enviar el reporte. Comprueba tu conexión e inténtalo de nuevo.'
+          : 'The report could not be sent. Check your connection and try again.',
+      );
+    }
+  };
+
+  const handleCopyReportId = async () => {
+    if (!reportId) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(reportId);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  if (status === 'sent') {
+    return (
+      <div className="modal-overlay" role="presentation" onClick={onClose}>
+        <section
+          className="modal-panel report-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="report-modal-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <h2 id="report-modal-title">{text.reportSuccessTitle}</h2>
+          <p>{text.reportSuccessBody}</p>
+          {reportId ? (
+            <div className="report-id">
+              <span>
+                {text.reportIdLabel} <strong>#{reportId}</strong>
+              </span>
+              <button
+                type="button"
+                className="report-id-copy"
+                onClick={handleCopyReportId}
+                aria-label={text.reportCopyId}
+                title={text.reportCopyId}
+              >
+                {copied ? (
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M3 8.5l3 3 7-7" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                    <path d="M3.5 10.5V3.5a1 1 0 0 1 1-1h7" />
+                  </svg>
+                )}
+                <span>{copied ? text.reportCopied : text.reportCopyId}</span>
+              </button>
+            </div>
+          ) : null}
+          <div className="modal-actions">
+            <Button onClick={onClose}>{text.installDismiss}</Button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="modal-overlay" role="presentation" onClick={onClose}>
+      <section
+        className="modal-panel report-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="report-modal-title">{text.reportTitle}</h2>
+        <form className="report-form" onSubmit={handleSubmit}>
+          <label className="report-field" htmlFor="report-category">
+            <span>{text.reportCategoryLabel}</span>
+            <select id="report-category" value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value as ReportCategory)}>
+              <option value="game">{text.reportCategoryGame}</option>
+              <option value="letters">{text.reportCategoryLetters}</option>
+              <option value="text">{text.reportCategoryText}</option>
+              <option value="translations">{text.reportCategoryTranslations}</option>
+              <option value="other">{text.reportCategoryOther}</option>
+            </select>
+          </label>
+
+          <label className="report-field" htmlFor="report-description">
+            <span>{text.reportCommentLabel}</span>
+            <textarea
+              id="report-description"
+              rows={6}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder={text.reportCommentPlaceholder}
+              maxLength={3000}
+            />
+          </label>
+
+          <div className="report-field">
+            <span>{text.reportFilesLabel}</span>
+            <input
+              type="file"
+              multiple
+              accept="image/*,.pdf,.txt,.md,.json,.csv,.log"
+              onChange={handleFiles}
+            />
+            <small>{text.reportFilesHint}</small>
+          </div>
+
+          {attachments.length > 0 && (
+            <div className="report-attachments" aria-live="polite">
+              <strong>{text.reportFilesSelected}</strong>
+              <ul>
+                {attachments.map((attachment) => (
+                  <li key={attachment.id}>
+                    {attachment.file.name} <span>({formatFileSize(attachment.file.size)})</span>
+                    <button type="button" className="report-attachment-remove" onClick={() => removeAttachment(attachment.id)} aria-label={text.reportCancel}>
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {errorMessage && <p className="report-error" role="alert">{errorMessage}</p>}
+
+          <div className="modal-actions report-actions">
+            <Button type="submit" disabled={status === 'sending'}>
+              {status === 'sending' ? text.reportSending : text.reportSend}
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={status === 'sending'}>
+              {text.reportCancel}
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+const SUBSCRIBE_ENDPOINT = '/api/subscribe';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function SubscribeModal({ locale, onClose }: { locale: Locale; onClose: () => void }) {
+  const text = translations[locale];
+  const [mode, setMode] = useState<'subscribe' | 'unsubscribe'>('subscribe');
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
+  const [wasSubscribed, setWasSubscribed] = useState(false);
+
+  const handleUnsubscribe = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      setErrorMessage(text.subscribeInvalidEmail);
+      return;
+    }
+
+    setStatus('sending');
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch(SUBSCRIBE_ENDPOINT, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error ?? 'Unsubscribe failed');
+      }
+
+      setWasSubscribed(Boolean(payload.wasSubscribed));
+      setStatus('sent');
+    } catch {
+      setStatus('idle');
+      setErrorMessage(text.subscribeError);
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      setErrorMessage(text.subscribeInvalidEmail);
+      return;
+    }
+
+    setStatus('sending');
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch(SUBSCRIBE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail, locale }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error ?? 'Subscription failed');
+      }
+
+      setAlreadySubscribed(Boolean(payload.alreadySubscribed));
+      setStatus('sent');
+    } catch {
+      setStatus('idle');
+      setErrorMessage(text.subscribeError);
+    }
+  };
+
+  if (status === 'sent') {
+    return (
+      <div className="modal-overlay" role="presentation" onClick={onClose}>
+        <section
+          className="modal-panel subscribe-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="subscribe-modal-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {mode === 'subscribe' ? (
+            <>
+              <h2 id="subscribe-modal-title">{text.subscribeSuccessTitle}</h2>
+              <p>{alreadySubscribed ? text.subscribeAlready : text.subscribeSuccessBody}</p>
+            </>
+          ) : (
+            <>
+              <h2 id="subscribe-modal-title">{text.unsubscribeSuccessTitle}</h2>
+              <p>{wasSubscribed ? text.unsubscribeSuccessBody : text.unsubscribeNotFound}</p>
+            </>
+          )}
+          <div className="modal-actions">
+            <Button onClick={onClose}>{text.installDismiss}</Button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="modal-overlay" role="presentation" onClick={onClose}>
+      <section
+        className="modal-panel subscribe-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="subscribe-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="subscribe-modal-title">
+          {mode === 'subscribe' ? text.subscribeTitle : text.unsubscribeTitle}
+        </h2>
+        <p>{mode === 'subscribe' ? text.subscribeBody : text.unsubscribeBody}</p>
+        <form className="report-form" onSubmit={mode === 'subscribe' ? handleSubmit : handleUnsubscribe}>
+          <label className="report-field" htmlFor="subscribe-email">
+            <span>{text.subscribeEmailLabel}</span>
+            <input
+              id="subscribe-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder={text.subscribeEmailPlaceholder}
+              required
+            />
+          </label>
+
+          {errorMessage && <p className="report-error" role="alert">{errorMessage}</p>}
+
+          <div className="modal-actions report-actions">
+            <Button type="submit" disabled={status === 'sending'}>
+              {status === 'sending'
+                ? text.subscribeSending
+                : mode === 'subscribe'
+                  ? text.subscribeSend
+                  : text.unsubscribeSend}
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={status === 'sending'}>
+              {text.reportCancel}
+            </Button>
+          </div>
+          <button
+            type="button"
+            className="subscribe-mode-toggle"
+            onClick={() => {
+              setMode((current) => (current === 'subscribe' ? 'unsubscribe' : 'subscribe'));
+              setErrorMessage(null);
+            }}
+            disabled={status === 'sending'}
+          >
+            {mode === 'subscribe' ? text.unsubscribeToggle : text.subscribeToggle}
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 const fallingCardImages = [
   '/inicio_animacion/trebol.png',
   '/inicio_animacion/picas.jpg',
@@ -843,23 +1360,7 @@ function GameScreen({
         </div>
       )}
 
-      {showReport && (
-        <div className="modal-overlay" role="presentation" onClick={() => setShowReport(false)}>
-          <section
-            className="modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="report-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 id="report-modal-title">{text.reportTitle}</h2>
-            <p>{text.reportBody}</p>
-            <div className="modal-actions">
-              <Button onClick={() => setShowReport(false)}>{text.installDismiss}</Button>
-            </div>
-          </section>
-        </div>
-      )}
+      {showReport && <ReportModal locale={locale} onClose={() => setShowReport(false)} />}
 
       {game.phase === 'finished' && winner && (
         <div className="modal-overlay" role="presentation">
@@ -927,6 +1428,8 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(getInitialSettings);
   const [selectedDifficulty, setSelectedDifficulty] = useState<BotDifficulty | null>(null);
   const [showSettingsReport, setShowSettingsReport] = useState(false);
+  const [showSettingsSubscribe, setShowSettingsSubscribe] = useState(false);
+  const [showInfoSubscribe, setShowInfoSubscribe] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState<boolean>(
     () => localStorage.getItem(WHATS_NEW_KEY) !== WHATS_NEW_VERSION,
   );
@@ -1184,6 +1687,13 @@ export default function App() {
                 {translations[locale].lightTheme}
               </label>
             </fieldset>
+            <div className="settings-subscribe">
+              <h3 className="modal-section-title">{translations[locale].subscribeSectionTitle}</h3>
+              <p>{translations[locale].subscribeSectionBody}</p>
+              <Button variant="secondary" onClick={() => setShowSettingsSubscribe(true)}>
+                {translations[locale].subscribeButton}
+              </Button>
+            </div>
             <div className="modal-actions">
               <Button
                 variant="secondary"
@@ -1201,22 +1711,9 @@ export default function App() {
           </section>
         </div>
       )}
-      {showSettingsReport && (
-        <div className="modal-overlay" role="presentation" onClick={() => setShowSettingsReport(false)}>
-          <section
-            className="modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-report-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 id="settings-report-modal-title">{translations[locale].reportTitle}</h2>
-            <p>{translations[locale].reportBody}</p>
-            <div className="modal-actions">
-              <Button onClick={() => setShowSettingsReport(false)}>{translations[locale].installDismiss}</Button>
-            </div>
-          </section>
-        </div>
+      {showSettingsReport && <ReportModal locale={locale} onClose={() => setShowSettingsReport(false)} />}
+      {showSettingsSubscribe && (
+        <SubscribeModal locale={locale} onClose={() => setShowSettingsSubscribe(false)} />
       )}
       {showInfo && (
         <div className="modal-overlay" role="presentation" onClick={() => setShowInfo(false)}>
@@ -1232,12 +1729,20 @@ export default function App() {
             <InstallInstructions locale={locale} />
             <h3 className="modal-section-title">{translations[locale].licenseTitle}</h3>
             <p className="modal-license-text">{translations[locale].licenseBody}</p>
+            <div className="settings-subscribe">
+              <h3 className="modal-section-title">{translations[locale].subscribeSectionTitle}</h3>
+              <p>{translations[locale].subscribeSectionBody}</p>
+              <Button variant="secondary" onClick={() => setShowInfoSubscribe(true)}>
+                {translations[locale].subscribeButton}
+              </Button>
+            </div>
             <div className="modal-actions">
               <Button onClick={() => setShowInfo(false)}>{translations[locale].installDismiss}</Button>
             </div>
           </div>
         </div>
       )}
+      {showInfoSubscribe && <SubscribeModal locale={locale} onClose={() => setShowInfoSubscribe(false)} />}
     </>
   );
 }

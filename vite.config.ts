@@ -42,6 +42,15 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    proxy: {
+      // Forwards /api/* to the local Cloudflare Pages Functions dev server
+      // (started separately with `npm run dev:api`) so features like the
+      // bug-report form work while running plain `npm run dev` (Vite only).
+      '/api': {
+        target: 'http://127.0.0.1:8787',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     host: '0.0.0.0',

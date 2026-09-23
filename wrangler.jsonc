@@ -5,5 +5,11 @@
   "pages_build_output_dir": "./dist",
   "observability": {
     "enabled": true
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SUBSCRIBERS",
+      "id": "4fd704204f5e4a2cb047bba7683d9bb5"
+    }
+  ]
 }
