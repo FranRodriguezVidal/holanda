@@ -14,7 +14,7 @@ import { getRandomExitPhrase } from './utils/exitPhrases';
 const SETTINGS_KEY = 'holanda.settings';
 const INSTALL_PROMPT_DISMISSED_KEY = 'holanda.installPromptDismissed';
 const WHATS_NEW_KEY = 'holanda.whatsNewSeen';
-const WHATS_NEW_VERSION = '2026-09-03-4';
+const WHATS_NEW_VERSION = '2026-09-25-5';
 
 type Theme = 'dark' | 'light';
 
@@ -1802,6 +1802,9 @@ export default function App() {
               </Button>
             </div>
             <div className="modal-actions">
+              <Button variant="secondary" onClick={() => setShowWhatsNew(true)}>
+                {translations[locale].whatsNewButton}
+              </Button>
               <Button onClick={() => setShowInfo(false)}>{translations[locale].installDismiss}</Button>
             </div>
           </div>
