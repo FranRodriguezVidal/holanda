@@ -544,7 +544,7 @@ export const applyKingPunishment = (
         ? { ...entry, hand: [...entry.hand, { ...extraCard, faceUp: false, isSelected: false }] }
         : entry,
     ),
-    lastEvent: `power-used:K:${playerId}:punish:${targetPlayerId}`,
+    lastEvent: `power-used:K:${playerId}:punish:${targetPlayerId}:${extraCard.id}`,
   };
 
   return finishTurn(nextState);
@@ -673,7 +673,7 @@ export const attemptSnap = (state: GameState, playerId: PlayerId, cardId: string
         hand: [...current.hand, { ...penalty, faceUp: false, isSelected: false }],
       })),
       deck: rest,
-      lastEvent: `snap-penalty:${playerId}:${cardId}`,
+      lastEvent: `snap-penalty:${playerId}:${cardId}:${penalty.id}`,
     };
   }
 
@@ -693,6 +693,54 @@ const KING_PUNISH_PROBABILITY: Record<BotDifficulty, number> = {
   amateur: 25 / 50,
   professional: 40 / 50,
   legend: 1,
+};
+
+/**
+ * Picks which rival card a bot should target with the J power, based on its
+ * difficulty:
+ * - beginner: prefers swapping with another bot (rarely targets the human),
+ *   and doesn't bother comparing card values.
+ * - amateur: mostly random, occasionally goes for a rival's lowest card.
+ * - professional: usually targets the human and looks for their weakest card.
+ * - legend: always targets the human and always picks their lowest-value
+ *   (fewest points) card, giving it near-perfect play.
+ */
+const chooseJackTarget = (
+  state: GameState,
+  botId: PlayerId,
+  difficulty: BotDifficulty,
+): Card | undefined => {
+  const rivals = state.players.filter((player) => player.id !== botId);
+  const humanRivals = rivals.filter((player) => !player.isBot);
+  const botRivals = rivals.filter((player) => player.isBot);
+
+  const lowestValueCard = (players: Player[]): Card | undefined => {
+    const cards = players.flatMap((player) => player.hand);
+    if (cards.length === 0) return undefined;
+    return [...cards].sort((a, b) => getCardValue(a) - getCardValue(b))[0];
+  };
+
+  const randomCard = (players: Player[]): Card | undefined => {
+    const cards = players.flatMap((player) => player.hand);
+    if (cards.length === 0) return undefined;
+    return cards[Math.floor(Math.random() * cards.length)];
+  };
+
+  switch (difficulty) {
+    case 'beginner':
+      return randomCard(botRivals.length > 0 ? botRivals : humanRivals);
+    case 'amateur':
+      return Math.random() < 0.5 ? (lowestValueCard(rivals) ?? randomCard(rivals)) : randomCard(rivals);
+    case 'professional': {
+      const pool = humanRivals.length > 0 && Math.random() < 0.75 ? humanRivals : rivals;
+      return lowestValueCard(pool) ?? randomCard(rivals);
+    }
+    case 'legend':
+    default: {
+      const pool = humanRivals.length > 0 ? humanRivals : rivals;
+      return lowestValueCard(pool) ?? randomCard(rivals);
+    }
+  }
 };
 
 /** Simple beginner-level bot: draws, discards or swaps, and uses powers naively. */
@@ -726,9 +774,7 @@ export const getBotAction = (
           ? { kind: 'use-power', targetCardId: highestOwn.id }
           : { kind: 'skip-power' };
       }
-      const others = state.players.filter((player) => player.id !== botId);
-      const otherCards = others.flatMap((player) => player.hand);
-      const target = otherCards[Math.floor(Math.random() * otherCards.length)];
+      const target = chooseJackTarget(state, botId, difficulty);
       return target ? { kind: 'use-power', targetCardId: target.id } : { kind: 'skip-power' };
     }
     if (state.pendingPower === 'K') {

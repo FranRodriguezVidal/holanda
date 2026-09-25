@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Card } from './components/cards/Card';
+import { Card, type CardAnimationVariant } from './components/cards/Card';
 import { GameTable } from './components/game/GameTable';
 import { Button } from './components/ui/Button';
 import { InstallInstructions } from './components/ui/InstallInstructions';
@@ -877,6 +877,7 @@ function GameScreen({
   const [peekRevealing, setPeekRevealing] = useState(false);
   const [powerModalDismissedKey, setPowerModalDismissedKey] = useState<string | null>(null);
   const [drawModalDismissedKey, setDrawModalDismissedKey] = useState<string | null>(null);
+  const [animatingCards, setAnimatingCards] = useState<Record<string, CardAnimationVariant>>({});
 
   const matchLabel = difficulty ? text[difficultyLabelKey[difficulty]] : text.match;
   const localPlayer = game.players[0]!;
@@ -886,7 +887,7 @@ function GameScreen({
     game.players.find((player) => player.id === game.currentPlayerId)?.name ?? '';
 
   const isBotTurn =
-    game.phase === 'playing' || game.phase === 'special-power'
+    (game.phase === 'playing' || game.phase === 'special-power') && !game.jackRevealCardId
       ? !isLocalTurn
       : false;
 
@@ -962,14 +963,76 @@ function GameScreen({
     return () => window.clearTimeout(timer);
   }, [game.phase, game.peekAllowance, game.currentPlayerId, introDismissed, startingPlayerIsLocal, choosePeekAllowance]);
 
-  // Hide the card revealed by a J swap after a short delay, then advance turn.
+  // Translate the last engine event into a transient "which card is moving
+  // and how" animation map, so the UI can play a short, real-life-like
+  // motion (deal, flip, swap, discard, punishment) on the exact card(s)
+  // involved, then clear itself once the animation has finished playing.
   useEffect(() => {
-    if (!game.jackRevealCardId || game.pendingPowerPlayerId !== localPlayer.id) {
+    const event = game.lastEvent;
+    if (!event) {
       return;
     }
-    const timer = window.setTimeout(() => {
-      finishJackReveal(localPlayer.id);
-    }, 2500);
+
+    const nextAnimations: Record<string, CardAnimationVariant> = {};
+    const discardMatch = event.match(/^discard-drawn:[^:]+:(.+)$/);
+    const swapMatch = event.match(/^swap:[^:]+:(.+?)->(.+)$/);
+    const qMatch = event.match(/^power-used:Q:[^:]+:(.+)$/);
+    const jMatch = event.match(/^power-used:J:[^:]+:(.+?)<->(.+)$/);
+    const kMatch = event.match(/^power-used:K:[^:]+:punish:[^:]+:(.+)$/);
+    const snapPenaltyMatch = event.match(/^snap-penalty:[^:]+:[^:]+:(.+)$/);
+    const snapMatch = event.match(/^snap:[^:]+:(.+)$/);
+
+    if (
+      (event.startsWith('draw:deck:') || event.startsWith('draw:discard:')) &&
+      game.drawnCard
+    ) {
+      nextAnimations[game.drawnCard.id] = 'draw';
+    } else if (discardMatch) {
+      nextAnimations[discardMatch[1]!] = 'discard';
+    } else if (swapMatch) {
+      nextAnimations[swapMatch[1]!] = 'discard';
+      nextAnimations[swapMatch[2]!] = 'draw';
+    } else if (qMatch) {
+      nextAnimations[qMatch[1]!] = 'flip';
+    } else if (jMatch) {
+      nextAnimations[jMatch[1]!] = 'swap';
+      nextAnimations[jMatch[2]!] = 'swap';
+    } else if (kMatch) {
+      nextAnimations[kMatch[1]!] = 'punish';
+    } else if (snapPenaltyMatch) {
+      nextAnimations[snapPenaltyMatch[1]!] = 'punish';
+    } else if (snapMatch) {
+      nextAnimations[snapMatch[1]!] = 'discard';
+    }
+
+    if (Object.keys(nextAnimations).length === 0) {
+      return;
+    }
+
+    const startTimer = window.setTimeout(() => setAnimatingCards(nextAnimations), 0);
+    const clearTimer = window.setTimeout(() => setAnimatingCards({}), 600);
+    return () => {
+      window.clearTimeout(startTimer);
+      window.clearTimeout(clearTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.lastEvent]);
+
+  // Hide the card revealed by a J swap after a short delay, then advance turn.
+  // Works for both the local player and bots: whoever cast the J power gets
+  // a brief look at the swapped-in card before the turn moves on.
+  useEffect(() => {
+    if (!game.jackRevealCardId || !game.pendingPowerPlayerId) {
+      return;
+    }
+    const revealPlayerId = game.pendingPowerPlayerId;
+    const isBotReveal = revealPlayerId !== localPlayer.id;
+    const timer = window.setTimeout(
+      () => {
+        finishJackReveal(revealPlayerId);
+      },
+      isBotReveal ? 1300 : 2500,
+    );
     return () => window.clearTimeout(timer);
   }, [game.jackRevealCardId, game.pendingPowerPlayerId, localPlayer.id, finishJackReveal]);
 
@@ -1222,6 +1285,7 @@ function GameScreen({
         onDrawDeck={canDraw ? () => draw(localPlayer!.id, 'deck') : undefined}
         onDrawDiscard={canDraw ? () => draw(localPlayer!.id, 'discard') : undefined}
         onCardClick={handleCardClick}
+        animatingCards={animatingCards}
         onDiscardDrawn={
           game.drawnCard && isLocalTurn && game.drawSource === 'deck'
             ? () => discardDrawn(localPlayer!.id)

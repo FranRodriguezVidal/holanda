@@ -2,7 +2,10 @@ import type { CSSProperties } from 'react';
 import type { Card as GameCard, GameState } from '../../game';
 import type { Locale } from '../../i18n/translations';
 import { translations } from '../../i18n/translations';
+import type { CardAnimationVariant } from '../cards/Card';
 import { Card } from '../cards/Card';
+
+export type CardAnimationMap = Record<string, CardAnimationVariant>;
 
 interface GameTableProps {
   state: GameState;
@@ -12,6 +15,7 @@ interface GameTableProps {
   onDrawDiscard?: () => void;
   onCardClick?: (playerId: string, card: GameCard) => void;
   onDiscardDrawn?: () => void;
+  animatingCards?: CardAnimationMap;
 }
 
 const renderHand = (
@@ -22,6 +26,7 @@ const renderHand = (
   extraClass = '',
   allowOpponentClicks = false,
   revealAll = false,
+  animatingCards: CardAnimationMap = {},
 ) => (
   <div
     className={`game-hand ${extraClass}`}
@@ -41,6 +46,7 @@ const renderHand = (
           card={card}
           faceUp={faceUp}
           disabled={!clickable}
+          animationVariant={animatingCards[card.id]}
           onClick={clickable ? () => onCardClick!(playerId, card) : undefined}
         />
       );
@@ -56,6 +62,7 @@ export function GameTable({
   onDrawDiscard,
   onCardClick,
   onDiscardDrawn,
+  animatingCards = {},
 }: GameTableProps) {
   const labels = translations[locale];
   const isTwoPlayerTable = state.players.length === 2;
@@ -96,6 +103,7 @@ export function GameTable({
           faceUp
           onClick={onDrawDiscard}
           disabled={!onDrawDiscard}
+          animationVariant={animatingCards[topDiscardCard.id]}
         />
       ) : (
         <div className="pile-empty">{labels.discardPile}</div>
@@ -110,6 +118,7 @@ export function GameTable({
         faceUp={state.currentPlayerId === localPlayerId}
         onClick={onDiscardDrawn}
         disabled={!onDiscardDrawn}
+        animationVariant={animatingCards[state.drawnCard.id]}
       />
       {state.currentPlayerId === localPlayerId && (
         <p className="drawn-card-hint">
@@ -131,17 +140,17 @@ export function GameTable({
         <div className="four-player-table">
           <article className="four-player-seat four-player-seat--top">
             <h3>{topPlayer.name}</h3>
-            {renderHand(topPlayer.hand, topPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(topPlayer.hand, topPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
 
           <article className="four-player-seat four-player-seat--left">
             <h3>{leftPlayer.name}</h3>
-            {renderHand(leftPlayer.hand, leftPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(leftPlayer.hand, leftPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
 
           <article className="four-player-seat four-player-seat--right">
             <h3>{rightPlayer.name}</h3>
-            {renderHand(rightPlayer.hand, rightPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(rightPlayer.hand, rightPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
 
           <div className="four-player-piles" aria-label={labels.gameTableAria}>
@@ -152,7 +161,7 @@ export function GameTable({
 
           <article className="four-player-seat four-player-seat--local">
             <h3>{localPlayer.name}</h3>
-            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'four-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
         </div>
       </section>
@@ -171,12 +180,12 @@ export function GameTable({
         <div className="three-player-table">
           <article className="three-player-seat three-player-seat--left">
             <h3>{leftPlayer.name}</h3>
-            {renderHand(leftPlayer.hand, leftPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(leftPlayer.hand, leftPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
 
           <article className="three-player-seat three-player-seat--right">
             <h3>{rightPlayer.name}</h3>
-            {renderHand(rightPlayer.hand, rightPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(rightPlayer.hand, rightPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
 
           <div className="three-player-piles" aria-label={labels.gameTableAria}>
@@ -187,7 +196,7 @@ export function GameTable({
 
           <article className="three-player-seat three-player-seat--local">
             <h3>{localPlayer.name}</h3>
-            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'three-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
         </div>
       </section>
@@ -206,7 +215,7 @@ export function GameTable({
         <div className="two-player-table">
           <article className="two-player-seat two-player-seat--opponent">
             <h3>{opponent.name}</h3>
-            {renderHand(opponent.hand, opponent.id, localPlayerId, onCardClick, 'two-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(opponent.hand, opponent.id, localPlayerId, onCardClick, 'two-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
 
           <div className="two-player-piles" aria-label={labels.gameTableAria}>
@@ -217,7 +226,7 @@ export function GameTable({
 
           <article className="two-player-seat two-player-seat--local">
             <h3>{localPlayer.name}</h3>
-            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'two-player-hand', allowOpponentClicks, revealAllHands)}
+            {renderHand(localPlayer.hand, localPlayer.id, localPlayerId, onCardClick, 'two-player-hand', allowOpponentClicks, revealAllHands, animatingCards)}
           </article>
         </div>
       </section>
@@ -257,7 +266,7 @@ export function GameTable({
               <h3>{player.name}</h3>
               <span>{player.id === state.currentPlayerId ? labels.current : labels.waiting}</span>
             </div>
-            {renderHand(player.hand, player.id, localPlayerId, onCardClick, '', false, revealAllHands)}
+            {renderHand(player.hand, player.id, localPlayerId, onCardClick, '', false, revealAllHands, animatingCards)}
           </article>
         ))}
       </div>

@@ -1022,6 +1022,32 @@ textarea:focus-visible {
   animation: card-pop 280ms ease;
 }
 
+.card--anim-draw {
+  animation: card-deal 380ms cubic-bezier(0.22, 0.9, 0.36, 1);
+  z-index: 6;
+}
+
+.card--anim-flip {
+  animation: card-flip 500ms ease;
+  z-index: 6;
+}
+
+.card--anim-swap {
+  animation: card-swap 450ms ease;
+  z-index: 6;
+}
+
+.card--anim-discard {
+  animation: card-discard 380ms ease-in;
+  z-index: 6;
+}
+
+.card--anim-punish {
+  animation: card-punish 520ms ease;
+  z-index: 6;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.55), 0 14px 32px rgba(15, 23, 42, 0.45);
+}
+
 .card--disabled {
   opacity: 0.6;
   cursor: default;
@@ -1127,6 +1153,89 @@ textarea:focus-visible {
   100% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes card-deal {
+  0% {
+    transform: translate3d(0, -60px, 0) scale(0.7) rotate(-8deg);
+    opacity: 0.2;
+  }
+  60% {
+    transform: translate3d(0, 6px, 0) scale(1.06) rotate(2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes card-flip {
+  0% {
+    transform: perspective(600px) rotateY(0deg) scale(1);
+  }
+  50% {
+    transform: perspective(600px) rotateY(90deg) scale(1.05);
+  }
+  100% {
+    transform: perspective(600px) rotateY(0deg) scale(1);
+  }
+}
+
+@keyframes card-swap {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  30% {
+    transform: translate3d(0, -14px, 0) scale(1.08) rotate(-4deg);
+  }
+  60% {
+    transform: translate3d(0, -4px, 0) scale(1.08) rotate(4deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes card-discard {
+  0% {
+    transform: translate3d(0, -18px, 0) scale(1.05) rotate(0deg);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1) rotate(-3deg);
+    opacity: 1;
+  }
+}
+
+@keyframes card-punish {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  20% {
+    transform: translate3d(-4px, 0, 0) rotate(-6deg);
+  }
+  40% {
+    transform: translate3d(4px, 0, 0) rotate(6deg);
+  }
+  60% {
+    transform: translate3d(-3px, 0, 0) rotate(-4deg);
+  }
+  80% {
+    transform: translate3d(3px, 0, 0) rotate(4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card--anim-draw,
+  .card--anim-flip,
+  .card--anim-swap,
+  .card--anim-discard,
+  .card--anim-punish,
+  .card--animated {
+    animation: none !important;
   }
 }
 

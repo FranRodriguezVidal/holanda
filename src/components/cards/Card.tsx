@@ -1,11 +1,13 @@
 import type { Card as GameCard } from '../../game';
 
+export type CardAnimationVariant = 'draw' | 'flip' | 'swap' | 'discard' | 'punish';
+
 interface CardProps {
   card: GameCard;
   faceUp?: boolean;
   disabled?: boolean;
   selected?: boolean;
-  animate?: boolean;
+  animationVariant?: CardAnimationVariant;
   onClick?: () => void;
   className?: string;
 }
@@ -23,7 +25,7 @@ export function Card({
   faceUp = card.faceUp,
   disabled = false,
   selected = card.isSelected,
-  animate = false,
+  animationVariant,
   onClick,
   className = '',
 }: CardProps) {
@@ -37,7 +39,7 @@ export function Card({
         'card',
         revealed ? 'card--face-up' : 'card--face-down',
         selected ? 'card--selected' : '',
-        animate ? 'card--animated' : '',
+        animationVariant ? `card--anim-${animationVariant}` : '',
         disabled ? 'card--disabled' : '',
         className,
       ]
