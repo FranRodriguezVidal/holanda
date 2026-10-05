@@ -45,6 +45,7 @@ const createPlayer = (id: string, name: string, isBot: boolean): Player => ({
   id,
   name,
   hand: [],
+  knownCardIds: [],
   isActive: false,
   isBot,
 });
@@ -114,7 +115,7 @@ export const createInitialGameState = (
     ),
   );
 
-  const deck = shuffleDeck(createDeck());
+  const deck = shuffleDeck(createDeck(options.difficulty ?? 'amateur'));
   const startingIndex = Math.floor(Math.random() * players.length);
   const startingPlayer = players[startingIndex];
 
@@ -127,6 +128,7 @@ export const createInitialGameState = (
     discardPile: [],
     turnNumber: 1,
     startingTurn: startingIndex + 1,
+    difficulty: options.difficulty ?? 'amateur',
   };
 
   const withHands = dealInitialHands(baseState, startingHandSize);
@@ -167,12 +169,40 @@ export const setPeekAllowance = (
 
   const max = getInitialPeekMax();
   const clamped = Math.max(0, Math.min(max, Math.round(allowance)));
+  const difficulty = state.difficulty ?? 'amateur';
 
   return {
     ...state,
     peekAllowance: clamped,
+    players: state.players.map((player) =>
+      player.isBot && clamped > 0
+        ? {
+            ...player,
+            knownCardIds: shuffleDeck(player.hand)
+              .slice(0, Math.min(clamped, getBotPeekAllowance(difficulty)))
+              .map((card) => card.id),
+          }
+        : player,
+    ),
     lastEvent: `peek-allowance:${playerId}:${clamped}`,
   };
+};
+
+export const getBotPeekAllowance = (
+  difficulty: BotDifficulty,
+  roll = Math.random(),
+): number => {
+  switch (difficulty) {
+    case 'beginner':
+      return roll < 0.5 ? 1 : 2;
+    case 'amateur':
+      if (roll < 0.2) return 0;
+      return roll < 0.6 ? 1 : 2;
+    case 'professional':
+      return roll < 0.5 ? 0 : 1;
+    case 'legend':
+      return 0;
+  }
 };
 
 /**
@@ -209,6 +239,9 @@ export const peekCard = (state: GameState, playerId: PlayerId, cardId: string): 
 
   return withPlayer(state, playerId, (current) => ({
     ...current,
+    knownCardIds: current.knownCardIds.includes(cardId)
+      ? current.knownCardIds
+      : [...current.knownCardIds, cardId],
     hand: current.hand.map((card) =>
       card.id === cardId ? { ...card, faceUp: true } : card,
     ),
@@ -321,6 +354,10 @@ export const swapDrawnCard = (
       entry.id === playerId
         ? {
             ...entry,
+            knownCardIds: [
+              ...entry.knownCardIds.filter((id) => id !== handCardId),
+              incoming.id,
+            ],
             hand: entry.hand.map((card) => (card.id === handCardId ? incoming : card)),
           }
         : entry,
@@ -389,6 +426,9 @@ export const activateSpecialPower = (
     return {
       ...withPlayer(state, playerId, (current) => ({
         ...current,
+        knownCardIds: current.knownCardIds.includes(targetCardId)
+          ? current.knownCardIds
+          : [...current.knownCardIds, targetCardId],
         hand: current.hand.map((card) =>
           card.id === targetCardId ? { ...card, faceUp: true } : card,
         ),
@@ -460,6 +500,10 @@ export const swapWithJack = (
         // The caster gets to see the card they received in the swap.
         return {
           ...entry,
+          knownCardIds: [
+            ...entry.knownCardIds.filter((id) => id !== selectedOwn.id),
+            targetCard.id,
+          ],
           hand: entry.hand.map((card) =>
             card.id === selectedOwn.id
               ? { ...targetCard, faceUp: true, isSelected: false }
@@ -471,6 +515,7 @@ export const swapWithJack = (
         // The rival never gets to see the new card they received.
         return {
           ...entry,
+          knownCardIds: entry.knownCardIds.filter((id) => id !== targetCardId),
           hand: entry.hand.map((card) =>
             card.id === targetCardId
               ? { ...selectedOwn, faceUp: false, isSelected: false }
@@ -680,6 +725,7 @@ export const attemptSnap = (state: GameState, playerId: PlayerId, cardId: string
   return {
     ...withPlayer(state, playerId, (current) => ({
       ...current,
+      knownCardIds: current.knownCardIds.filter((id) => id !== cardId),
       hand: current.hand.filter((entry) => entry.id !== cardId),
     })),
     discardPile: [{ ...card, faceUp: true, isSelected: false }, ...state.discardPile],
@@ -689,21 +735,22 @@ export const attemptSnap = (state: GameState, playerId: PlayerId, cardId: string
 
 /** Approximate probability (0-1) that a bot will actually punish a rival with the King power. */
 const KING_PUNISH_PROBABILITY: Record<BotDifficulty, number> = {
-  beginner: 1 / 50,
-  amateur: 25 / 50,
-  professional: 40 / 50,
+  beginner: 25 / 100,
+  amateur: 50 / 100,
+  professional: 75 / 100,
   legend: 1,
 };
+
+const UNKNOWN_CARD_ESTIMATE = 6.2;
+
+const getBotCardEstimate = (bot: Player, card: Card): number =>
+  bot.knownCardIds.includes(card.id) ? getCardValue(card) : UNKNOWN_CARD_ESTIMATE;
 
 /**
  * Picks which rival card a bot should target with the J power, based on its
  * difficulty:
- * - beginner: prefers swapping with another bot (rarely targets the human),
- *   and doesn't bother comparing card values.
- * - amateur: mostly random, occasionally goes for a rival's lowest card.
- * - professional: usually targets the human and looks for their weakest card.
- * - legend: always targets the human and always picks their lowest-value
- *   (fewest points) card, giving it near-perfect play.
+ * Lower levels cannot see rivals' hidden cards, so they choose randomly from
+ * their preferred target group. Legend deliberately has perfect information.
  */
 const chooseJackTarget = (
   state: GameState,
@@ -730,10 +777,10 @@ const chooseJackTarget = (
     case 'beginner':
       return randomCard(botRivals.length > 0 ? botRivals : humanRivals);
     case 'amateur':
-      return Math.random() < 0.5 ? (lowestValueCard(rivals) ?? randomCard(rivals)) : randomCard(rivals);
+      return randomCard(rivals);
     case 'professional': {
       const pool = humanRivals.length > 0 && Math.random() < 0.75 ? humanRivals : rivals;
-      return lowestValueCard(pool) ?? randomCard(rivals);
+      return randomCard(pool) ?? randomCard(rivals);
     }
     case 'legend':
     default: {
@@ -747,7 +794,7 @@ const chooseJackTarget = (
 export const getBotAction = (
   state: GameState,
   botId: PlayerId,
-  difficulty: BotDifficulty = 'amateur',
+  difficulty: BotDifficulty = state.difficulty ?? 'amateur',
 ):
   | { kind: 'draw'; source: DrawSource }
   | { kind: 'discard-drawn' }
@@ -763,13 +810,15 @@ export const getBotAction = (
 
   if (state.phase === 'special-power' && state.pendingPowerPlayerId === botId) {
     if (state.pendingPower === 'Q') {
-      const own = bot.hand[0];
+      const own = bot.hand.find((card) => !bot.knownCardIds.includes(card.id)) ?? bot.hand[0];
       return own ? { kind: 'use-power', targetCardId: own.id } : { kind: 'skip-power' };
     }
     if (state.pendingPower === 'J') {
       const selectedOwn = bot.hand.find((card) => card.isSelected);
       if (!selectedOwn) {
-        const highestOwn = [...bot.hand].sort((a, b) => getCardValue(b) - getCardValue(a))[0];
+        const highestOwn = [...bot.hand].sort(
+          (a, b) => getBotCardEstimate(bot, b) - getBotCardEstimate(bot, a),
+        )[0];
         return highestOwn
           ? { kind: 'use-power', targetCardId: highestOwn.id }
           : { kind: 'skip-power' };
@@ -788,7 +837,7 @@ export const getBotAction = (
   }
 
   if (state.drawnCard) {
-    const handValues = bot.hand.map((card) => getCardValue(card));
+    const handValues = bot.hand.map((card) => getBotCardEstimate(bot, card));
     const drawnValue = getCardValue(state.drawnCard);
     const maxHandValue = Math.max(...handValues, 0);
 
@@ -797,7 +846,10 @@ export const getBotAction = (
     }
 
     const highestCard = bot.hand.reduce<Card | null>((highest, card) => {
-      if (!highest || getCardValue(card) > getCardValue(highest)) {
+      if (
+        !highest ||
+        getBotCardEstimate(bot, card) > getBotCardEstimate(bot, highest)
+      ) {
         return card;
       }
       return highest;
@@ -808,7 +860,9 @@ export const getBotAction = (
 
   const topDiscard = state.discardPile[0];
   if (topDiscard) {
-    const matching = bot.hand.find((card) => rankMatches(card, topDiscard));
+    const matching = bot.hand.find(
+      (card) => bot.knownCardIds.includes(card.id) && rankMatches(card, topDiscard),
+    );
     if (matching && Math.random() < 0.75) {
       return { kind: 'snap', cardId: matching.id };
     }

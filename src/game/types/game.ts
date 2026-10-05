@@ -14,6 +14,7 @@ export interface Player {
   id: PlayerId;
   name: string;
   hand: Card[];
+  knownCardIds: string[];
   isActive: boolean;
   isBot?: boolean;
 }
@@ -61,6 +62,8 @@ export interface GameState {
    * every other player must comply with the same limit.
    */
   peekAllowance?: number;
+  /** Bot strategy and private-information rules for this match. */
+  difficulty?: BotDifficulty;
   /**
    * Id of the card the caster of a J power just received in a swap, kept
    * face-up briefly so they can see it before the turn passes on.
@@ -79,4 +82,5 @@ export interface GameAction {
 export interface EngineOptions {
   startingHandSize?: number;
   initialPhase?: GamePhase;
+  difficulty?: BotDifficulty;
 }

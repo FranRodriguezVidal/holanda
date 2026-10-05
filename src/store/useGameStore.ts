@@ -16,14 +16,14 @@ import {
   applyKingPunishment,
   callHolanda,
 } from '../game';
-import type { DrawSource, GameState } from '../game';
+import type { BotDifficulty, DrawSource, GameState } from '../game';
 
 const defaultPlayers = ['Ana', 'Bruno', 'Carmen', 'Diego'];
 
 interface GameStore {
   game: GameState;
   setGame: (nextState: GameState) => void;
-  resetGame: (players?: string[]) => void;
+  resetGame: (players?: string[], difficulty?: BotDifficulty) => void;
   choosePeekAllowance: (playerId: string, allowance: number) => void;
   peek: (playerId: string, cardId: string) => void;
   beginPlay: () => void;
@@ -43,7 +43,8 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set) => ({
   game: createInitialGameState(defaultPlayers),
   setGame: (nextState) => set({ game: nextState }),
-  resetGame: (players = defaultPlayers) => set({ game: createInitialGameState(players) }),
+  resetGame: (players = defaultPlayers, difficulty = 'amateur') =>
+    set({ game: createInitialGameState(players, { difficulty }) }),
   choosePeekAllowance: (playerId, allowance) =>
     set((state) => ({ game: setPeekAllowance(state.game, playerId, allowance) })),
   peek: (playerId, cardId) => set((state) => ({ game: peekCard(state.game, playerId, cardId) })),

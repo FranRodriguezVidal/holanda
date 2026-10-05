@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .dev.vars
+/music-source/
 
 # Editor directories and files
 .vscode/*

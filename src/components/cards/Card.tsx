@@ -1,4 +1,5 @@
 import type { Card as GameCard } from '../../game';
+import { classicCardBackImage, getClassicCardArt } from './cardAssets';
 
 export type CardAnimationVariant = 'draw' | 'flip' | 'swap' | 'discard' | 'punish';
 
@@ -31,6 +32,7 @@ export function Card({
 }: CardProps) {
   const revealed = faceUp;
   const label = revealed ? `${card.rank} of ${card.suit}` : 'Hidden card';
+  const cardArt = revealed ? getClassicCardArt(card) : undefined;
 
   return (
     <button
@@ -51,13 +53,17 @@ export function Card({
       title={label}
     >
       {revealed ? (
-        <>
-          <span className="card__value card__value--top">{card.rank}</span>
-          <span className="card__suit">{suitSymbols[card.suit] ?? card.suit}</span>
-          <span className="card__value card__value--bottom">{card.rank}</span>
-        </>
+        cardArt ? (
+          <img className="card__art" src={cardArt} alt="" draggable={false} />
+        ) : (
+          <>
+            <span className="card__value card__value--top">{card.rank}</span>
+            <span className="card__suit">{suitSymbols[card.suit] ?? card.suit}</span>
+            <span className="card__value card__value--bottom">{card.rank}</span>
+          </>
+        )
       ) : (
-        <span aria-hidden="true">?</span>
+        <img className="card__art" src={classicCardBackImage} alt="" draggable={false} />
       )}
     </button>
   );

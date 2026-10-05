@@ -1,10 +1,21 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Card, type CardAnimationVariant } from './components/cards/Card';
+import {
+  classicCardArtImages,
+  classicCardBackImage,
+  getClassicCardArtByRank,
+} from './components/cards/cardAssets';
 import { GameTable } from './components/game/GameTable';
 import { Button } from './components/ui/Button';
 import { InstallInstructions } from './components/ui/InstallInstructions';
 import { InstallPromptModal } from './components/ui/InstallPromptModal';
-import { getBotAction, getCardValue, type BotDifficulty, type Card as GameCardType } from './game';
+import {
+  getBotAction,
+  getBotPeekAllowance,
+  getCardValue,
+  type BotDifficulty,
+  type Card as GameCardType,
+} from './game';
 import { getDefaultLocale, translations, type Locale } from './i18n/translations';
 import { useGameStore } from './store/useGameStore';
 import { isMobileDevice, isStandaloneDisplayMode } from './utils/device';
@@ -14,7 +25,8 @@ import { getRandomExitPhrase } from './utils/exitPhrases';
 const SETTINGS_KEY = 'holanda.settings';
 const INSTALL_PROMPT_DISMISSED_KEY = 'holanda.installPromptDismissed';
 const WHATS_NEW_KEY = 'holanda.whatsNewSeen';
-const WHATS_NEW_VERSION = '2026-09-25-5';
+const WHATS_NEW_VERSION = '2026-09-26-1';
+const BACKGROUND_MUSIC_SOURCE = '/music/background.mp3';
 
 type Theme = 'dark' | 'light';
 
@@ -547,15 +559,9 @@ function SubscribeModal({ locale, onClose }: { locale: Locale; onClose: () => vo
   );
 }
 
-const fallingCardImages = [
-  '/inicio_animacion/trebol.png',
-  '/inicio_animacion/picas.jpg',
-  '/inicio_animacion/joker.jpg',
-] as const;
-
-const fallingCards = Array.from({ length: 14 }, (_, index) => ({
+const fallingCards = classicCardArtImages.map((image, index) => ({
   id: `falling-card-${index}`,
-  image: fallingCardImages[index % fallingCardImages.length]!,
+  image,
   style: {
     '--fall-left': `${(index * 29 + 7) % 100}%`,
     '--fall-delay': `${-((index * 1.37) % 12)}s`,
@@ -564,6 +570,30 @@ const fallingCards = Array.from({ length: 14 }, (_, index) => ({
     '--fall-size': `${72 + ((index * 13) % 42)}px`,
   } as CSSProperties,
 }));
+
+type RulesTranslationKey = keyof typeof translations.en;
+
+const rulesCardGuide: {
+  rank: string;
+  titleKey: RulesTranslationKey;
+  detailsKey: RulesTranslationKey;
+  image: string;
+}[] = [
+  { rank: 'A', titleKey: 'rulesAceTitle', detailsKey: 'rulesAceBody', image: getClassicCardArtByRank('A') },
+  ...Array.from({ length: 9 }, (_, index) => {
+    const rank = String(index + 2);
+    return {
+      rank,
+      titleKey: 'rulesNumberTitle' as const,
+      detailsKey: 'rulesNumberBody' as const,
+      image: getClassicCardArtByRank(rank),
+    };
+  }),
+  { rank: 'J', titleKey: 'rulesJackTitle', detailsKey: 'rulesJackBody', image: getClassicCardArtByRank('J') },
+  { rank: 'Q', titleKey: 'rulesQueenTitle', detailsKey: 'rulesQueenBody', image: getClassicCardArtByRank('Q') },
+  { rank: 'K', titleKey: 'rulesKingTitle', detailsKey: 'rulesKingBody', image: getClassicCardArtByRank('K') },
+  { rank: 'JOKER', titleKey: 'rulesJokerTitle', detailsKey: 'rulesJokerBody', image: '/cardsclasic/JOKER_1.webp' },
+];
 
 function getInitialLocale(): Locale {
   const storedValue = localStorage.getItem('holanda.locale');
@@ -841,6 +871,20 @@ const difficultyLabelKey: Record<BotDifficulty, 'matchBeginner' | 'matchAmateur'
   legend: 'matchLegend',
 };
 
+const getBotThinkingDelay = (difficulty: BotDifficulty | null): number => {
+  switch (difficulty) {
+    case 'beginner':
+      return 0;
+    case 'amateur':
+    case 'professional':
+      return 10_000 + Math.floor(Math.random() * 5_001);
+    case 'legend':
+      return 5_000;
+    default:
+      return 0;
+  }
+};
+
 function GameScreen({
   locale,
   difficulty,
@@ -878,6 +922,11 @@ function GameScreen({
   const [powerModalDismissedKey, setPowerModalDismissedKey] = useState<string | null>(null);
   const [drawModalDismissedKey, setDrawModalDismissedKey] = useState<string | null>(null);
   const [animatingCards, setAnimatingCards] = useState<Record<string, CardAnimationVariant>>({});
+  const botThinkingTurn = useRef<{
+    key: string;
+    deadline: number;
+    initialActionPending: boolean;
+  } | null>(null);
 
   const matchLabel = difficulty ? text[difficultyLabelKey[difficulty]] : text.match;
   const localPlayer = game.players[0]!;
@@ -957,11 +1006,11 @@ function GameScreen({
       return;
     }
     const timer = window.setTimeout(() => {
-      const allowance = Math.floor(Math.random() * 3);
+      const allowance = getBotPeekAllowance(difficulty ?? 'amateur');
       choosePeekAllowance(game.currentPlayerId, allowance);
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [game.phase, game.peekAllowance, game.currentPlayerId, introDismissed, startingPlayerIsLocal, choosePeekAllowance]);
+  }, [game.phase, game.peekAllowance, game.currentPlayerId, introDismissed, startingPlayerIsLocal, choosePeekAllowance, difficulty]);
 
   // Translate the last engine event into a transient "which card is moving
   // and how" animation map, so the UI can play a short, real-life-like
@@ -1042,7 +1091,22 @@ function GameScreen({
     }
 
     const botId = game.currentPlayerId;
+    const turnKey = `${game.turnNumber}:${botId}`;
+    if (botThinkingTurn.current?.key !== turnKey) {
+      botThinkingTurn.current = {
+        key: turnKey,
+        deadline: performance.now() + getBotThinkingDelay(difficulty),
+        initialActionPending: true,
+      };
+    }
+    const thinkingTurn = botThinkingTurn.current;
+    const actionDelay = thinkingTurn.initialActionPending
+      ? Math.max(0, thinkingTurn.deadline - performance.now())
+      : 1100;
     const timer = window.setTimeout(() => {
+      if (botThinkingTurn.current?.key === turnKey) {
+        botThinkingTurn.current.initialActionPending = false;
+      }
       const action = getBotAction(game, botId, difficulty ?? 'amateur');
 
       if (action.kind === 'draw') {
@@ -1083,7 +1147,7 @@ function GameScreen({
       if (action.kind === 'skip-power') {
         skipPower(botId);
       }
-    }, 1100);
+    }, actionDelay);
 
     return () => window.clearTimeout(timer);
   }, [game, isBotTurn, draw, discardDrawn, swapDrawn, snap, activatePower, skipPower, jackSwap, kingPunish, difficulty]);
@@ -1252,6 +1316,7 @@ function GameScreen({
           ) : (
             <>
               {text.turnOf} <strong>{currentTurnPlayerName}</strong>
+              {isBotTurn && <span className="bot-thinking">{text.botThinking}</span>}
             </>
           )}
           {game.holandaCallerId && ` · ${text.finalRoundActive}`}
@@ -1410,14 +1475,57 @@ function GameScreen({
       {showRules && (
         <div className="modal-overlay" role="presentation" onClick={() => setShowRules(false)}>
           <section
-            className="modal-panel"
+            className="modal-panel modal-panel--rules"
             role="dialog"
             aria-modal="true"
             aria-labelledby="rules-modal-title"
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="rules-modal-title">{text.rulesTitle}</h2>
-            <p>{text.rulesBody}</p>
+            <div className="rules-guide">
+              <p>{text.rulesIntro}</p>
+              <h3>{text.rulesGoalTitle}</h3>
+              <p>{text.rulesGoalBody}</p>
+              <h3>{text.rulesSetupTitle}</h3>
+              <p>{text.rulesSetupBody}</p>
+              <h3>{text.rulesTurnTitle}</h3>
+              <ol>
+                <li>{text.rulesTurnDraw}</li>
+                <li>{text.rulesTurnChoose}</li>
+                <li>{text.rulesTurnDiscard}</li>
+                <li>{text.rulesTurnSnap}</li>
+              </ol>
+              <h3>{text.rulesHolandaTitle}</h3>
+              <p>{text.rulesHolandaBody}</p>
+              <h3>{text.rulesCardsTitle}</h3>
+              <p>{text.rulesCardsIntro}</p>
+              <div className="rules-card-grid">
+                {rulesCardGuide.map((entry) => (
+                  <article className="rules-card" key={entry.rank}>
+                    <img src={entry.image} alt="" loading="lazy" />
+                    <div>
+                      <h4>
+                        {entry.rank === 'JOKER' ? text.rulesJokerTitle : `${entry.rank} · ${text[entry.titleKey]}`}
+                      </h4>
+                      <p>
+                        {entry.rank === 'JOKER'
+                          ? text[entry.detailsKey]
+                          : entry.rank === 'A'
+                            ? text[entry.detailsKey]
+                            : entry.rank === 'J' || entry.rank === 'Q' || entry.rank === 'K'
+                              ? text[entry.detailsKey]
+                              : `${text[entry.detailsKey]} ${entry.rank}.`}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="rules-card-back">
+                <img src={classicCardBackImage} alt="" loading="lazy" />
+                <p>{text.rulesBackBody}</p>
+              </div>
+              <p className="rules-note">{text.rulesPowerTiming}</p>
+            </div>
             <div className="modal-actions">
               <Button onClick={() => setShowRules(false)}>{text.installDismiss}</Button>
             </div>
@@ -1498,7 +1606,81 @@ export default function App() {
   const [showWhatsNew, setShowWhatsNew] = useState<boolean>(
     () => localStorage.getItem(WHATS_NEW_KEY) !== WHATS_NEW_VERSION,
   );
+  const [musicTrackStatus, setMusicTrackStatus] = useState<
+    'checking' | 'ready' | 'missing' | 'invalid' | 'too-large'
+  >('checking');
+  const backgroundMusicRef = useRef<HTMLAudioElement>(null);
+  const musicUserInteracted = useRef(false);
   const { resetGame } = useGameStore();
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const checkMusicTrack = async () => {
+      try {
+        const response = await fetch(BACKGROUND_MUSIC_SOURCE, {
+          method: 'HEAD',
+          signal: controller.signal,
+        });
+        const contentType = response.headers.get('content-type');
+        if (response.status === 404 || contentType?.startsWith('text/html')) {
+          setMusicTrackStatus('missing');
+          return;
+        }
+        if (!response.ok || !contentType?.startsWith('audio/')) {
+          console.error('HOLANDA background music must be served as an audio file.', response.status);
+          setMusicTrackStatus('invalid');
+          return;
+        }
+        const contentLength = Number(response.headers.get('content-length'));
+        if (Number.isFinite(contentLength) && contentLength > 12 * 1024 * 1024) {
+          setMusicTrackStatus('too-large');
+          return;
+        }
+        setMusicTrackStatus('ready');
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to check the HOLANDA background music file.', error);
+        setMusicTrackStatus('invalid');
+      }
+    };
+
+    void checkMusicTrack();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const audio = backgroundMusicRef.current;
+    if (!audio || musicTrackStatus !== 'ready') {
+      return;
+    }
+
+    audio.volume = settings.musicVolume / 100;
+    const resumeMusicAfterInteraction = () => {
+      musicUserInteracted.current = true;
+      if (audio.volume === 0 || !audio.paused) {
+        return;
+      }
+      void audio.play().catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          return;
+        }
+        console.error('Unable to play HOLANDA background music.', error);
+      });
+    };
+
+    if (musicUserInteracted.current) {
+      resumeMusicAfterInteraction();
+    }
+    document.addEventListener('pointerdown', resumeMusicAfterInteraction);
+    document.addEventListener('keydown', resumeMusicAfterInteraction);
+    return () => {
+      document.removeEventListener('pointerdown', resumeMusicAfterInteraction);
+      document.removeEventListener('keydown', resumeMusicAfterInteraction);
+    };
+  }, [musicTrackStatus, settings.musicVolume]);
 
   useEffect(() => {
     localStorage.setItem('holanda.locale', locale);
@@ -1530,7 +1712,7 @@ export default function App() {
 
   const handleSelectParticipants = (participantCount: ParticipantCount) => {
     if (participantCount === 2) {
-      resetGame(locale === 'es' ? ['Tú', getRandomBotName()] : ['You', getRandomBotName()]);
+      resetGame(locale === 'es' ? ['Tú', getRandomBotName()] : ['You', getRandomBotName()], selectedDifficulty ?? 'amateur');
       setScreen('game');
       return;
     }
@@ -1542,7 +1724,7 @@ export default function App() {
       while (botTwo === botOne) {
         botTwo = getRandomBotName();
       }
-      resetGame([localName, botOne, botTwo]);
+      resetGame([localName, botOne, botTwo], selectedDifficulty ?? 'amateur');
       setScreen('game');
       return;
     }
@@ -1556,7 +1738,7 @@ export default function App() {
           botNames.push(candidate);
         }
       }
-      resetGame([localName, ...botNames]);
+      resetGame([localName, ...botNames], selectedDifficulty ?? 'amateur');
       setScreen('game');
       return;
     }
@@ -1584,6 +1766,13 @@ export default function App() {
 
   return (
     <>
+      <audio
+        ref={backgroundMusicRef}
+        src={musicTrackStatus === 'ready' ? BACKGROUND_MUSIC_SOURCE : undefined}
+        loop
+        preload="auto"
+        aria-hidden="true"
+      />
       {showWhatsNew && (
         <div className="modal-overlay" role="presentation" onClick={dismissWhatsNew}>
           <section
@@ -1723,13 +1912,25 @@ export default function App() {
                 min="0"
                 max="100"
                 value={settings.musicVolume}
-                onChange={(event) =>
+                onChange={(event) => {
+                  const musicVolume = Number(event.target.value);
+                  if (backgroundMusicRef.current) {
+                    backgroundMusicRef.current.volume = musicVolume / 100;
+                  }
                   setSettings((currentSettings) => ({
                     ...currentSettings,
-                    musicVolume: Number(event.target.value),
-                  }))
-                }
+                    musicVolume,
+                  }));
+                }}
               />
+              {musicTrackStatus !== 'ready' && (
+                <p className="settings-control__hint" role="status">
+                  {musicTrackStatus === 'checking' && translations[locale].musicTrackChecking}
+                  {musicTrackStatus === 'missing' && translations[locale].musicTrackMissing}
+                  {musicTrackStatus === 'invalid' && translations[locale].musicTrackInvalid}
+                  {musicTrackStatus === 'too-large' && translations[locale].musicTrackTooLarge}
+                </p>
+              )}
             </div>
             <fieldset className="theme-selector">
               <legend>{translations[locale].theme}</legend>

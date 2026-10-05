@@ -1,10 +1,15 @@
-import type { Card, CardRank, CardSuit } from '../types';
+import type { BotDifficulty, Card, CardRank, CardSuit } from '../types';
 
 const suits: CardSuit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const ranks: CardRank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-const JOKER_COUNT = 2;
+const JOKER_COUNT_BY_DIFFICULTY: Record<BotDifficulty, number> = {
+  beginner: 4,
+  amateur: 3,
+  professional: 2,
+  legend: 1,
+};
 
-export const createDeck = (): Card[] => {
+export const createDeck = (difficulty: BotDifficulty = 'amateur'): Card[] => {
   const deck: Card[] = [];
 
   for (const suit of suits) {
@@ -19,15 +24,16 @@ export const createDeck = (): Card[] => {
     }
   }
 
-  for (let index = 0; index < JOKER_COUNT; index += 1) {
-    deck.push({
+  const jokerCards = shuffleDeck(
+    Array.from({ length: 4 }, (_, index) => ({
       id: `joker-${index + 1}`,
       suit: 'wild',
       rank: 'JOKER',
       faceUp: false,
       isSelected: false,
-    });
-  }
+    })),
+  );
+  deck.push(...jokerCards.slice(0, JOKER_COUNT_BY_DIFFICULTY[difficulty]));
 
   return deck;
 };

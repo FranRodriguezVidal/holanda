@@ -34,8 +34,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
-        globIgnores: ['icon/icon_app.png'],
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,mp3,ico}'],
+        globIgnores: ['icon/icon_app.png', 'cardsclasic/**/*.png'],
+        maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
       },
     }),
   ],
